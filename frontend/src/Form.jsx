@@ -12,12 +12,13 @@ export default function Form() {
       const res = await fetch("http://localhost:5001/forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ID, name, summary, baseQuestions }),
+        body: JSON.stringify({ name, summary, baseQuestions }),
       });
       alert("Form Submitted!");
-
+      console.log("hello")
     } catch (error) {
       alert("Failed to submit form. Please try again.");
+      console.log("hi")
     }
   };
 

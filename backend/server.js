@@ -35,7 +35,19 @@ app.get("/forms/:id", async (req, res) => {
         return res.status(500).json({error: error.message});
     }
     res.json({forms:data});
-    console.log("it does work")
+
 })
+
+
+app.post('/forms/:id', async (req, res) => {
+    const {formid, answers} = req.body;
+    const {data, error} = await supabase.from('Responses').insert({ formid, answers}).select().single();
+        if (error) {
+            console.log(error)
+            return res.status(500).json({error: error.message});
+        }       
+    res.json({form:data}); 
+    console.log("we good")
+});
 
 app.listen(5001)
