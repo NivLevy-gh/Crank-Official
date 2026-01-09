@@ -7,6 +7,8 @@ import { BrowserRouter } from "react-router-dom";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
+  <div className="bg-neutral-900/98 min-h-screen">
     <App />
+    </div>
   </BrowserRouter>
 );
