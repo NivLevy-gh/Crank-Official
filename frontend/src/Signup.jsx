@@ -1,83 +1,129 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import { useNavigate } from "react-router-dom";
+import InfoBox from "./InfoBox";
+import google from "./assets/google1.png";
 import logo from "./assets/logo.png";
-import InfoBox from "./infoBox"
-import google from "./assets/google1.png"
-
 
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [FirstName, setFirstName] = useState("")
-  const [LastName, setLastName] = useState("")
   const navigate = useNavigate();
-
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-    });
-  
-    if (error) alert(error.message);
-    navigate("/dashboard");
-  };
-  
-  useEffect(() => {
-    const { data: { subscription } } =  supabase.auth.onAuthStateChange((event, session) => {
-        if (event === "SIGNED_IN") {
-          navigate("/dashboard");
-        }
-      });
-  
-    return () => subscription.unsubscribe();
-  }, []);
-
 
   const handleSignup = async (e) => {
     e.preventDefault();
 
-    const { error } = await supabase.auth.signUp({ email, password });
-  
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
     if (error) return alert(error.message);
+    navigate("/dashboard");
+  };
 
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") navigate("/dashboard");
+    });
 
-    alert("Signed up! Check your email if confirmation is enabled.");
-    navigate("/login");
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const signUpWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+    });
+    if (error) alert(error.message);
   };
 
   return (
-    <div className="flex flex-col items-center">
-      <img src={logo} alt="logo" className="w-50 h-14 my-8" />
-    <div className="flex flex-col items-center border border-neutral-700 rounded-3xl w-[26rem] h-[30rem] mx-auto bg-neutral-800 p-4">
-    <form className="flex items-center" onSubmit={handleSignup} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <h2 className="text-2xl font-semibold text-white">Create an account</h2>
-      <h4 className="text-xs text-neutral-500 mb-4">Enter your email and password to get started</h4>
-      {/*<InfoBox value={FirstName} onChange={(e) => setFirstName(e.target.value)} placeholder="John" label="First Name"/>
-      <InfoBox value={LastName} onChange={(e) => setLastName(e.target.value)} placeholder="Doe" type="password" label="Last Name"/>*/}
-      <InfoBox value={email} onChange={(e) => setEmail(e.target.value)} placeholder="John@example.com" label="Email"/>
-      <InfoBox value={password} onChange={(e) => setPassword(e.target.value)} placeholder="*******" type="password" label="Password"/>
-      <button className="border border-orange-300 w-[24rem] h-12 rounded-2xl bg-orange-300 mt-4 transition-transform duration-400 ease-out hover:scale-[1.02] cursor-pointer" type="submit">Create account</button>
-    </form>
-    <div className="flex items-center w-full my-4">
-  <div className="flex-grow border-t border-neutral-700"></div>
-  <span className="mx-3 text-xs text-neutral-400">OR CONTINUE WITH</span>
-  <div className="flex-grow border-t border-neutral-700"></div>
-</div>
+    <div className="min-h-screen bg-white flex items-center justify-center px-6">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <img src={logo} alt="logo" className="h-15 w-30 mb-0 w-auto" />
+        </div>
 
-<button
-  type="button"
-  onClick={signInWithGoogle}
-  className="flex items-center justify-center gap-2 w-full h-10 border border-neutral-700 rounded-xl text-white transition-colors transition-transform duration-400 ease-out hover:bg-neutral-700 hover:scale-[1.02] cursor-pointer"
+        {/* Card */}
+        <div className="border border-neutral-200 rounded-lg p-5">
+          <h1 className="text-lg font-medium text-neutral-900">
+            Create an account
+          </h1>
+          <p className="text-xs text-neutral-500 mt-1 mb-4">
+            Get started in under a minute
+          </p>
 
->
-  <img src={google} className="w-5 h-5" />
-  Continue with Google
-</button>
+          <form onSubmit={handleSignup} className="flex flex-col gap-3">
+            <InfoBox
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
 
-<span className="text-xs mt-6 text-neutral-400">Already have an account? <a onClick={() => navigate("/login")} className="text-blue-500 cursor-pointer hover:underline">Sign in</a></span>
+            <InfoBox
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Create a password"
+            />
 
+            <button
+              type="submit"
+              className="
+                h-9 rounded-md
+                bg-neutral-900 text-white
+                text-sm
+                hover:bg-neutral-800
+                transition
+              "
+            >
+              Create account
+            </button>
+          </form>
 
-    </div>
+          {/* Divider */}
+          <div className="my-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-neutral-200" />
+            <span className="text-[10px] text-neutral-400">or</span>
+            <div className="h-px flex-1 bg-neutral-200" />
+          </div>
+
+          {/* Google */}
+          <button
+            type="button"
+            onClick={signUpWithGoogle}
+            className="
+              h-9 w-full rounded-md
+              border border-neutral-200
+              bg-white text-neutral-900
+              text-sm
+              flex items-center justify-center gap-2
+              hover:bg-neutral-50
+              transition
+            "
+          >
+            <img src={google} alt="google" className="h-4 w-4" />
+            Continue with Google
+          </button>
+
+          {/* Footer */}
+          <p className="mt-5 text-center text-[11px] text-neutral-500">
+            Already have an account?{" "}
+            <span
+              onClick={() => navigate("/login")}
+              className="cursor-pointer text-neutral-900 hover:underline"
+            >
+              Sign in
+            </span>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

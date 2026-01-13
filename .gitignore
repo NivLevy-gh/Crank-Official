@@ -1,0 +1,11 @@
+
+# Dependencies
+node_modules/
+
+# Env
+.env
+
+# Mac
+.DS_Store
+
+backend/.env
