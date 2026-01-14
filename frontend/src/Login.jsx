@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import { useNavigate } from "react-router-dom";
-import InfoBox from "./InfoBox";
+import InfoBox from "./infoBox";
 import google from "./assets/google1.png";
 import logo from "./assets/logo.png";
 
