@@ -306,6 +306,9 @@ app.patch("/forms/:id/archive", async (req, res) => {
 
 
 app.post("/forms/:id/responses", async (req, res) => {
+  const user = await getUserFromRequest(req);
+if (!user) return res.status(401).json({ error: "Not logged in" });
+
   const { id } = req.params;
   const { answers, resumeProfile } = req.body;
 
