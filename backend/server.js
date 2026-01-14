@@ -12,6 +12,9 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+
+
+
 // ... rest of server.js ...
 
 // OpenAI + Supabase
@@ -591,6 +594,3 @@ let summaryObj = await generateCandidateSummaryJSON({
 // =============================
 // START SERVER
 // =============================
-app.listen(5001, () => {
-  console.log("Server running on http://localhost:5001");
-});

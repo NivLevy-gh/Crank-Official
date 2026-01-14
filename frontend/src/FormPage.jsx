@@ -50,7 +50,7 @@ export default function FormPage() {
           return;
         }
 
-        const res = await fetch(`http://localhost:5001/forms/${id}`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -98,7 +98,7 @@ export default function FormPage() {
     const combinedHistory = [...baseHistory, ...history];
 
     try {
-      const res = await fetch(`http://localhost:5001/forms/${id}/ai-next`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,7 +137,7 @@ export default function FormPage() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
 
-      const res = await fetch(`http://localhost:5001/forms/${id}/responses`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/responses`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -178,7 +178,7 @@ export default function FormPage() {
       const combinedHistory = [...baseHistory, ...history, newHistoryItem];
 
       try {
-        const res = await fetch(`http://localhost:5001/forms/${id}/ai-next`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -283,7 +283,7 @@ export default function FormPage() {
                 const formData = new FormData();
                 formData.append("resume", file);
 
-                const res = await fetch(`http://localhost:5001/forms/${id}/resume`, {
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/resume`, {
                   method: "POST",
                   headers: { Authorization: `Bearer ${token}` },
                   body: formData,

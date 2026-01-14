@@ -20,7 +20,7 @@ export default function Dashboard() {
     const token = sessionData.session?.access_token;
 
     try {
-      const res = await fetch(`http://localhost:5001/forms/${formId}/archive`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${formId}/archive`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -57,7 +57,7 @@ export default function Dashboard() {
       const token = sessionData.session?.access_token;
 
       try {
-        const res = await fetch("http://localhost:5001/forms", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

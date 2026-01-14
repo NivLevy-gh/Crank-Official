@@ -87,7 +87,7 @@ export default function Form() {
     const token = data.session?.access_token;
 
     try {
-      const res = await fetch("http://localhost:5001/forms", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

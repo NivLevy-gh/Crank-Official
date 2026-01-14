@@ -29,7 +29,7 @@ export default function ResponseDetail() {
           return;
         }
 
-        const res = await fetch(`http://localhost:5001/responses/${responseId}`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/responses/${responseId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -67,8 +67,7 @@ export default function ResponseDetail() {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     
-    const res = await fetch(
-      `http://localhost:5001/responses/${responseId}/summarize`,
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/responses/${responseId}/summarize`,
       {
         method: "POST",
         headers: {

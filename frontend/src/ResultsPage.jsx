@@ -45,7 +45,7 @@ export default function ResultsPage() {
           return;
         }
 
-        const res = await fetch(`http://localhost:5001/forms/${id}/results`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/results`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -76,7 +76,7 @@ export default function ResultsPage() {
     const token = sessionData.session?.access_token;
 
     try {
-      const res = await fetch(`http://localhost:5001/responses/${responseId}/summarize`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/responses/${responseId}/summarize`, {
         method: "POST",
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

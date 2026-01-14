@@ -32,8 +32,7 @@ export default function PublicFormPage() {
         setLoading(true);
         setLoadErr("");
 
-        const res = await fetch(
-          `http://localhost:5001/public/forms/${shareToken}`
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${shareToken}`
         );
         const data = await res.json();
 
@@ -70,8 +69,7 @@ export default function PublicFormPage() {
 
     const combinedHistory = extraHistory ?? [...baseHistory, ...history];
 
-    const res = await fetch(
-      `http://localhost:5001/public/forms/${shareToken}/ai-next`,
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/public/forms/${shareToken}/ai-next`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,8 +91,7 @@ export default function PublicFormPage() {
       answer: answers[i] || "",
     }));
 
-    await fetch(
-      `http://localhost:5001/public/forms/${shareToken}/responses`,
+    await fetch(`${import.meta.env.VITE_API_URL}/public/forms/${shareToken}/responses`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
