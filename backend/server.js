@@ -227,83 +227,88 @@ app.post("/forms/:id/ai-next", async (req, res) => {
   const { summary, history, resumeProfile } = req.body;
 
   try {
-    const prompt = `
-You are an AI SCREENING INTERVIEWER for a job application.
+    const compact = {
+      role_summary: summary || "",
+      resume: resumeProfile || {},
+      history: (history || []).slice(-12), // keep recent context, avoid huge prompts
+    };
 
-ROLE / JOB CONTEXT:
-${summary || ""}
+    const system = `
+You are a senior recruiter running a real phone screen.
+Your questions must sound human and specific — never generic, never "AI generated".
 
-CANDIDATE RESUME JSON:
-${JSON.stringify(resumeProfile || {})}
+Hard rules:
+- Ask ONE question only.
+- It must be grounded in ONE concrete resume/detail (company, role, project, tech, metric, highlight).
+- Never repeat an area already covered in history.
+- Avoid canned phrases like "walk me through" / "tell me about" more than once.
+- No fluff, no buzzwords, no "alignment" language.
 
-CONVERSATION SO FAR:
-${JSON.stringify(history || [])}
+Style:
+- 1–2 sentences max.
+- Conversational, natural.
+- Not overly formal.
+- Should take 60–120 seconds to answer well (not yes/no).
+`.trim();
 
-CRITICAL: Review the conversation history carefully. DO NOT ask about topics, projects, or situations already discussed.
+    const user = `
+You must do this in two steps internally:
 
-QUESTION GENERATION RULES:
-1. MUST reference a SPECIFIC item from the resume (company, role, project, skill, or highlight)
-2. MUST be UNIQUE - never repeat themes or topics already covered in the conversation history
-3. Focus on ONE of these aspects (rotate between them):
-   - A specific technical decision and its reasoning
-   - A concrete problem they solved and how
-   - A measurable outcome or metric they achieved
-   - A constraint or limitation they worked within
-   - A mistake or failure and what they learned
-   - How they influenced or collaborated with others
-   - A technical depth question about a skill they listed
+STEP A — Choose one "anchor":
+Pick exactly ONE anchor from the resume that is NOT already discussed in history.
+An anchor is one of:
+- a specific work_experience highlight
+- a specific project
+- a specific tool/skill used in a specific context
+- a metric/outcome (if present)
 
-4. Make it conversational and specific, like:
-   - "You mentioned [X project] - what was one decision you'd do differently?"
-   - "How did you measure success on [Y initiative]?"
-   - "What was the biggest technical constraint on [Z], and how did you work around it?"
-   - "Tell me about a time [X skill] didn't work - what happened?"
-   - "What surprised you most when working on [project]?"
+STEP B — Ask a strong question:
+Write a question that:
+- references the anchor explicitly
+- probes decision-making, tradeoffs, scope, or impact
+- feels like a real interviewer wrote it
 
-5. Keep it 8-18 words, conversational tone
-6. Avoid yes/no questions or questions that can be answered in one sentence
-7. Look at their LAST answer - build on it or shift to an unexplored resume area
-8. Return ONLY the question text, no quotes or formatting
+Anti-generic checks:
+- If the question could apply to any candidate, it's invalid.
+- If the question doesn't mention a resume-specific noun (project/company/tool), it's invalid.
 
-Generate ONE unique follow-up question now:
+Return ONLY the question text. No quotes. No bullet. No extra formatting.
+
+INPUT:
+${JSON.stringify(compact, null, 2)}
 `.trim();
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      temperature: 0.55, // lower than 0.7 = less "random template" weirdness
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
     });
 
     let nextQuestion = completion.choices?.[0]?.message?.content?.trim() || "";
     nextQuestion = nextQuestion.replace(/^["'`•\-\s]+/, "").replace(/["'`]+$/, "").trim();
 
-    if (!nextQuestion) return res.status(500).json({ error: "No question generated" });
+    // Final guard: reject generic questions (quick heuristic)
+    const tooGeneric =
+      nextQuestion.length < 8 ||
+      !/[A-Za-z]/.test(nextQuestion) ||
+      !/[?]$/.test(nextQuestion) ||
+      /(candidate|your resume|your background|tell me about yourself|strengths|weaknesses)/i.test(nextQuestion);
+
+    if (!nextQuestion || tooGeneric) {
+      return res.json({
+        nextQuestion:
+          "On your most recent project, what tradeoff did you make that you still think about?",
+      });
+    }
 
     return res.json({ nextQuestion });
   } catch (err) {
     console.error("AI error:", err);
     return res.status(500).json({ error: "AI request failed" });
   }
-});
-
-app.patch("/forms/:id/archive", async (req, res) => {
-  const user = await getUserFromRequest(req);
-  if (!user) return res.status(401).json({ error: "Not logged in" });
-
-  const { id } = req.params;
-  const { archived } = req.body; // true or false
-
-  const { data, error } = await supabase
-    .from("Forms")
-    .update({ archived })
-    .eq("ID", id)
-    .eq("user_id", user.id)
-    .select()
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-
-  return res.json({ form: data });
 });
 
 
@@ -426,6 +431,65 @@ app.get("/public/forms/:shareToken", async (req, res) => {
 
   return res.json({ form: data });
 });
+
+
+// =============================
+// UPDATE FORM (EDIT MODE)
+// =============================
+app.patch("/forms/:id", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: "Not logged in" });
+    }
+
+    const { id } = req.params;
+    const { name, summary, baseQuestions } = req.body;
+
+    // Basic validation
+    if (!name || !Array.isArray(baseQuestions)) {
+      return res.status(400).json({ error: "Invalid payload" });
+    }
+
+    // Make sure the form belongs to the user
+    const { data: form, error: findErr } = await supabase
+      .from("Forms")
+      .select("ID, user_id")
+      .eq("ID", id)
+      .single();
+
+    if (findErr || !form) {
+      return res.status(404).json({ error: "Form not found" });
+    }
+
+    if (form.user_id !== user.id) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    // Update only editable fields
+    const { data: updated, error: updateErr } = await supabase
+      .from("Forms")
+      .update({
+        name,
+        summary,
+        baseQuestions,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("ID", id)
+      .select()
+      .single();
+
+    if (updateErr) {
+      return res.status(500).json({ error: updateErr.message });
+    }
+
+    return res.json({ form: updated });
+  } catch (err) {
+    console.error("PATCH /forms/:id failed:", err);
+    return res.status(500).json({ error: "Failed to update form" });
+  }
+});
+
 
 app.post("/public/forms/:shareToken/ai-next", async (req, res) => {
   const { shareToken } = req.params;

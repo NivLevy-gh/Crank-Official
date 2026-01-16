@@ -1,11 +1,12 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import logo from "./assets/logo.png";
+import { supabase } from "./supabaseClient";
 
-export default function PublicFormPage() {
-  const { shareToken } = useParams();
+export default function FormPage() {
+  const navigate = useNavigate();
+  const { id } = useParams();
 
-  const [form, setForm] = useState(null);
+  const [crank, setCrank] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState("");
 
@@ -17,172 +18,351 @@ export default function PublicFormPage() {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [maxAiQuestions, setMaxAiQuestions] = useState(2);
 
-  const questions = useMemo(() => form?.baseQuestions || [], [form]);
+  const [resumeProfile, setResumeProfile] = useState(null);
+  const [resumeUploading, setResumeUploading] = useState(false);
+
+  const questions = useMemo(() => crank?.baseQuestions || [], [crank]);
 
   const aiUsed = history.length;
-  const aiLeft = Math.max(0, maxAiQuestions - aiUsed);
+  const aiLeft = Math.max(0, (maxAiQuestions ?? 0) - aiUsed);
+
   const shouldSubmit = !aiEnabled || (aiLeft === 0 && !aiQuestion);
 
-  // -a------------------------
-  // Load public form
-  // -------------------------
+  // Load form
   useEffect(() => {
-    const load = async () => {
+    const loadForm = async () => {
       try {
         setLoading(true);
         setLoadErr("");
 
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${shareToken}`
-        );
-        const data = await res.json();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
 
-        if (!res.ok) {
-          setLoadErr(data?.error || "Failed to load form");
+        if (!token) {
+          setLoadErr("Not logged in.");
           setLoading(false);
           return;
         }
 
-        setForm(data.form);
-        setAiEnabled(data.form?.aiEnabled ?? true);
-        setMaxAiQuestions(data.form?.maxAiQuestions ?? 2);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setLoadErr(data?.error || `Failed to load form`);
+          setLoading(false);
+          return;
+        }
+
+        const form = data.forms || data.form;
+        setCrank(form);
+        setAiEnabled(form?.aiEnabled ?? true);
+        setMaxAiQuestions(form?.maxAiQuestions ?? 2);
         setLoading(false);
       } catch (e) {
-        console.error(e);
-        setLoadErr("Failed to load form");
+        console.log(e);
+        setLoadErr("Failed to load form.");
         setLoading(false);
       }
     };
 
-    load();
-  }, [shareToken]);
+    loadForm();
+  }, [id]);
 
-  // -------------------------
-  // AI logic
-  // -------------------------
-  const getNextAiQuestion = async (extraHistory = null) => {
-    if (!form || !aiEnabled || aiQuestion || aiLeft <= 0) return;
+  // AI Question Logic
+  const getNextAiQuestion = async () => {
+    if (!crank) return;
+    if (!aiEnabled) return alert("AI follow-ups are disabled");
+    if (aiLeft <= 0) return alert(`Max ${maxAiQuestions} AI questions reached`);
+    if (aiQuestion) return alert("Answer current AI question first");
 
-    const baseHistory = questions.map((q, i) => ({
+    const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
       question: q,
       answer: answers[i] || "",
     }));
 
-    const combinedHistory = extraHistory ?? [...baseHistory, ...history];
+    const combinedHistory = [...baseHistory, ...history];
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/public/forms/${shareToken}/ai-next`,
-      {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           history: combinedHistory,
-          baseQuestions: form.baseQuestions,
-          summary: form.summary,
+          baseQuestions: crank.baseQuestions,
+          summary: crank.summary,
+          resumeProfile,
         }),
-      }
-    );
+      });
 
-    const data = await res.json();
-    if (res.ok) setAiQuestion(data.nextQuestion || "");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data?.error || "AI request failed");
+
+      setAiQuestion(data.nextQuestion || "");
+    } catch (err) {
+      console.log(err);
+      alert("AI request failed");
+    }
   };
 
+  // Submit
   const sendAnswers = async () => {
-    const baseHistory = questions.map((q, i) => ({
+    if (!crank) return;
+
+    const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
       question: q,
       answer: answers[i] || "",
     }));
 
-    await fetch(`${import.meta.env.VITE_API_URL}/public/forms/${shareToken}/responses`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          answers: [...baseHistory, ...history],
-        }),
-      }
-    );
+    const fullHistory = [...baseHistory, ...history];
 
-    alert("Submitted");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/responses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ formid: id, answers: fullHistory, resumeProfile }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return alert(data?.error || "Failed to submit");
+
+      alert("Submitted successfully!");
+      navigate("/dashboard");
+    } catch (e) {
+      console.log(e);
+      alert("Failed to submit");
+    }
   };
 
   const handlePrimary = async () => {
     if (shouldSubmit) return sendAnswers();
 
     if (aiQuestion) {
-      const newItem = { question: aiQuestion, answer: aiAnswer.trim() };
-      setHistory((h) => [...h, newItem]);
+      if (!aiAnswer.trim()) return alert("Answer the AI question first");
+
+      const newHistoryItem = { question: aiQuestion, answer: aiAnswer.trim() };
+      setHistory((prev) => [...prev, newHistoryItem]);
       setAiQuestion("");
       setAiAnswer("");
 
-      if (aiUsed + 1 < maxAiQuestions) {
-        const baseHistory = questions.map((q, i) => ({
-          question: q,
-          answer: answers[i] || "",
-        }));
-        getNextAiQuestion([...baseHistory, ...history, newItem]);
+      if (aiUsed + 1 >= maxAiQuestions) return;
+
+      const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
+        question: q,
+        answer: answers[i] || "",
+      }));
+      const combinedHistory = [...baseHistory, ...history, newHistoryItem];
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            history: combinedHistory,
+            baseQuestions: crank.baseQuestions,
+            summary: crank.summary,
+            resumeProfile,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+
+        setAiQuestion(data.nextQuestion || "");
+      } catch (e) {
+        console.log(e);
       }
+
       return;
     }
 
-    getNextAiQuestion();
+    await getNextAiQuestion();
   };
 
-  // -------------------------
-  // Render
-  // -------------------------
-  if (loading) return <div className="p-6 text-sm">Loading…</div>;
-  if (loadErr) return <div className="p-6 text-sm">{loadErr}</div>;
-  if (!form) return <div className="p-6 text-sm">Form not found</div>;
+  if (loading) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-neutral-600">Loading…</div></div>;
+  if (loadErr) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-red-600">{loadErr}</div></div>;
+  if (!crank) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-neutral-600">Form not found</div></div>;
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900">
-      {/* Header */}
-      <div className="border-b px-6 py-4">
-        <img src={logo} alt="logo" className="h-6" />
-      </div>
-
-      <div className="mx-auto max-w-xl px-6 py-10">
-        <h1 className="text-xl font-medium">{form.name}</h1>
-        <p className="mt-1 text-sm text-neutral-500">{form.summary}</p>
-
-        {/* Base questions */}
-        <div className="mt-8 space-y-5">
-          {questions.map((q, i) => (
-            <div key={i}>
-              <div className="text-sm font-medium">{q}</div>
-              <textarea
-                className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
-                rows={3}
-                value={answers[i] || ""}
-                onChange={(e) =>
-                  setAnswers((a) => ({ ...a, [i]: e.target.value }))
-                }
-              />
+    <div className="min-h-screen bg-neutral-50 py-8">
+      <div className="mx-auto max-w-3xl px-4">
+        
+        {/* Header Card */}
+        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          {/* Orange accent bar */}
+          <div className="h-2.5 bg-orange-200" />
+          
+          <div className="p-8">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h1 className="text-3xl font-semibold text-neutral-900 mb-3">
+                  {crank.name}
+                </h1>
+                <p className="text-base text-neutral-600 leading-relaxed">
+                  {crank.summary}
+                </p>
+              </div>
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="ml-4 h-9 rounded-xl px-4 text-sm font-medium text-neutral-700 hover:bg-neutral-100 transition"
+              >
+                Back
+              </button>
             </div>
-          ))}
+
+            {/* Info badges */}
+            <div className="flex flex-wrap gap-2 pt-3 border-t border-neutral-100">
+              <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-neutral-100 text-neutral-700 text-xs font-medium">
+                AI: {aiEnabled ? "Enabled" : "Disabled"}
+              </span>
+              {aiEnabled && (
+                <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
+                  {aiUsed}/{maxAiQuestions} AI questions used
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* AI follow-up */}
+        {/* Resume Upload Card */}
+        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-7 shadow-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-neutral-900">Resume</h3>
+              <p className="text-sm text-neutral-500 mt-1.5">
+                Upload your resume for more personalized questions
+              </p>
+            </div>
+            
+            {resumeProfile ? (
+              <span className="px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                ✓ Uploaded
+              </span>
+            ) : (
+              <span className="px-3 py-1.5 rounded-full bg-neutral-100 text-neutral-600 text-xs font-medium">
+                Optional
+              </span>
+            )}
+          </div>
+
+          <label className="flex items-center justify-center w-full h-14 rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 hover:bg-orange-50 hover:border-orange-300 cursor-pointer transition group">
+            <span className="text-sm font-medium text-neutral-600 group-hover:text-orange-700 transition">
+              {resumeUploading ? "Processing…" : "Click to upload PDF"}
+            </span>
+            <input
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                setResumeUploading(true);
+
+                const { data: sessionData } = await supabase.auth.getSession();
+                const token = sessionData.session?.access_token;
+
+                const formData = new FormData();
+                formData.append("resume", file);
+
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/resume`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}` },
+                  body: formData,
+                });
+
+                const data = await res.json().catch(() => ({}));
+                setResumeUploading(false);
+
+                if (!res.ok) return alert(data?.error || "Upload failed");
+
+                setResumeProfile(data.resumeProfile);
+              }}
+            />
+          </label>
+        </div>
+
+        {/* Questions */}
+        {questions.map((q, i) => (
+          <div key={i} className="mb-5 rounded-2xl border border-neutral-200 bg-white p-7 shadow-sm">
+            <label className="block">
+              <div className="flex items-start gap-2 mb-4">
+                <span className="text-base font-medium text-neutral-900">{q}</span>
+                <span className="text-red-500 text-sm">*</span>
+              </div>
+              <textarea
+                className="w-full min-h-[100px] rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 placeholder-neutral-400 resize-none focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-100 transition"
+                placeholder="Your answer"
+                value={answers[i] || ""}
+                onChange={(e) => setAnswers((prev) => ({ ...prev, [i]: e.target.value }))}
+              />
+            </label>
+          </div>
+        ))}
+
+        {/* AI Follow-up Question */}
         {aiEnabled && aiQuestion && (
-          <div className="mt-8">
-            <div className="text-sm font-medium">{aiQuestion}</div>
+          <div className="mb-5 rounded-2xl border-2 border-orange-300 bg-orange-50 p-7 shadow-sm">
+            <div className="flex items-start gap-2 mb-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="px-2.5 py-1 rounded-lg bg-orange-200 text-orange-800 text-xs font-semibold">
+                    AI QUESTION
+                  </span>
+                  <span className="text-xs text-orange-700 font-medium">
+                    {aiLeft} remaining
+                  </span>
+                </div>
+                <p className="text-base font-medium text-neutral-900">{aiQuestion}</p>
+              </div>
+            </div>
             <textarea
-              className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
-              rows={3}
+              className="w-full min-h-[120px] rounded-xl border border-orange-300 bg-white px-4 py-3 text-sm text-neutral-900 placeholder-neutral-400 resize-none focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100 transition"
+              placeholder="Your answer"
               value={aiAnswer}
               onChange={(e) => setAiAnswer(e.target.value)}
             />
           </div>
         )}
 
-        {/* Button */}
-        <div className="mt-10 flex justify-end">
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between gap-3 pt-4 pb-8">
           <button
-            onClick={handlePrimary}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 transition"
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            className="px-5 py-2.5 text-sm font-medium text-neutral-600 hover:bg-white hover:border hover:border-neutral-200 rounded-xl transition"
           >
-            {shouldSubmit ? "Submit" : "Next"}
+            Cancel
           </button>
+
+          <div className="flex gap-3">
+            {!shouldSubmit && aiLeft > 0 && (
+              <button
+                type="button"
+                onClick={handlePrimary}
+                className="px-6 py-2.5 rounded-xl bg-white border border-orange-300 text-orange-700 text-sm font-medium hover:bg-orange-50 transition shadow-sm"
+              >
+                Next AI question
+              </button>
+            )}
+            
+            <button
+              type="button"
+              onClick={shouldSubmit ? handlePrimary : sendAnswers}
+              className="px-8 py-2.5 rounded-xl bg-orange-200 border border-orange-200 text-neutral-900 text-sm font-semibold hover:bg-orange-300 transition shadow-sm"
+            >
+              Submit
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   );
