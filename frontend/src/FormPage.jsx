@@ -30,9 +30,7 @@ export default function FormPage() {
   const [editSummary, setEditSummary] = useState("");
   const [editQuestions, setEditQuestions] = useState([]);
   
-  console.log("VITE_API_URL =", JSON.stringify(import.meta.env.VITE_API_URL));
-console.log("Form id =", id);
-
+  
   const publicUrl = useMemo(() => {
     if (!crank?.share_token) return "";
     return `${window.location.origin}/f/${crank.share_token}`;
@@ -66,39 +64,49 @@ console.log("Form id =", id);
       try {
         setLoading(true);
         setLoadErr("");
-
+  
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-
+  
         if (!token) {
           setLoadErr("Not logged in.");
           setLoading(false);
           return;
         }
-
+  
         const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
+  
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setLoadErr(data?.error || `Failed to load form`);
           setLoading(false);
           return;
         }
-
+  
+        const form = data.forms || data.form;
+  
+        setCrank(form);
+        setAiEnabled(form?.aiEnabled ?? true);
+        setMaxAiQuestions(form?.maxAiQuestions ?? 2);
+  
         setEditName(form?.name || "");
-setEditSummary(form?.summary || "");
-setEditQuestions(form?.baseQuestions || []);
+        setEditSummary(form?.summary || "");
+        setEditQuestions(form?.baseQuestions || []);
+  
+        setLoading(false);
       } catch (e) {
         console.log(e);
         setLoadErr("Failed to load form.");
         setLoading(false);
       }
     };
-
+  
     loadForm();
   }, [id]);
+
+ 
 
 
   const saveEdits = async () => {
