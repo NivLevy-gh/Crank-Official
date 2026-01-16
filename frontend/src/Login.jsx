@@ -8,13 +8,21 @@ import logo from "./assets/logo.png";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return alert(error.message);
-    navigate("/dashboard");
+    if (busy) return;
+
+    try {
+      setBusy(true);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return alert(error.message);
+      navigate("/dashboard");
+    } finally {
+      setBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -28,95 +36,107 @@ export default function Login() {
   }, [navigate]);
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-    });
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
     if (error) alert(error.message);
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <img src={logo} alt="logo" className="h-15 w-30 w-auto" />
-        </div>
+    <div className="min-h-screen bg-[rgb(253,249,244)]">
+      {/* subtle top gradient */}
+      <div className="h-36 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
 
-        {/* Card */}
-        <div className="border border-neutral-200 rounded-lg p-5">
-          <h1 className="text-lg font-medium text-neutral-900">
-            Sign in
-          </h1>
-          <p className="text-xs text-neutral-500 mt-1 mb-4">
-            Enter your credentials
-          </p>
-
-          <form onSubmit={handleLogin} className="flex flex-col gap-3">
-            <InfoBox
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-
-            <InfoBox
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-
-            <button
-              type="submit"
-              className="
-                h-9 rounded-md
-                bg-neutral-900 text-white
-                text-sm
-                hover:bg-neutral-800
-                transition
-              "
-            >
-              Sign in
-            </button>
-          </form>
-
-          {/* Divider */}
-          <div className="my-4 flex items-center gap-3">
-            <div className="h-px flex-1 bg-neutral-200" />
-            <span className="text-[10px] text-neutral-400">or</span>
-            <div className="h-px flex-1 bg-neutral-200" />
+      <div className="-mt-16 flex items-center justify-center px-6 pb-16">
+        <div className="w-full max-w-sm">
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <img src={logo} alt="logo" className="h-10 w-auto" />
           </div>
 
-          {/* Google */}
-          <button
-            type="button"
-            onClick={signInWithGoogle}
-            className="
-              h-9 w-full rounded-md
-              border border-neutral-200
-              bg-white text-neutral-900
-              text-sm
-              flex items-center justify-center gap-2
-              hover:bg-neutral-50
-              transition
-            "
-          >
-            <img src={google} alt="google" className="h-4 w-4" />
-            Continue with Google
-          </button>
+          {/* Card */}
+          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+            <div className="h-1.5 bg-[rgb(242,200,168)]" />
 
-          {/* Footer */}
-          <p className="mt-5 text-center text-[11px] text-neutral-500">
-            Don’t have an account?{" "}
-            <span
-              onClick={() => navigate("/")}
-              className="cursor-pointer text-neutral-900 hover:underline"
-            >
-              Sign up
-            </span>
-          </p>
+            <div className="p-6">
+              <h1 className="text-xl font-semibold text-neutral-900">Sign in</h1>
+              <p className="text-xs text-neutral-500 mt-1 mb-5">
+                Enter your credentials
+              </p>
+
+              <form onSubmit={handleLogin} className="flex flex-col gap-3">
+                <InfoBox
+                  label="Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+
+                <InfoBox
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="
+                    h-10 rounded-xl px-4 text-sm font-semibold
+                    bg-[rgb(242,200,168)] text-neutral-900
+                    border border-[rgb(242,200,168)]
+                    hover:bg-[rgb(235,185,150)]
+                    transition shadow-sm
+                    disabled:opacity-60 disabled:cursor-not-allowed
+                  "
+                >
+                  {busy ? "Signing in…" : "Sign in"}
+                </button>
+              </form>
+
+              {/* Divider */}
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-neutral-200" />
+                <span className="text-[10px] text-neutral-400">or</span>
+                <div className="h-px flex-1 bg-neutral-200" />
+              </div>
+
+              {/* Google */}
+              <button
+                type="button"
+                onClick={signInWithGoogle}
+                className="
+                  h-10 w-full rounded-xl
+                  border border-neutral-200
+                  bg-white text-neutral-900
+                  text-sm font-semibold
+                  flex items-center justify-center gap-2
+                  hover:bg-[rgb(251,236,221)]
+                  transition
+                "
+              >
+                <img src={google} alt="google" className="h-4 w-4" />
+                Continue with Google
+              </button>
+
+              {/* Footer */}
+              <p className="mt-5 text-center text-[11px] text-neutral-500">
+                Don’t have an account?{" "}
+                <span
+                  onClick={() => navigate("/")}
+                  className="cursor-pointer text-[rgb(166,96,43)] hover:underline font-medium"
+                >
+                  Sign up
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {/* tiny helper text */}
+          <div className="mt-4 text-center text-[11px] text-neutral-400">
+            By signing in, you agree to your Terms & Privacy Policy.
+          </div>
         </div>
       </div>
     </div>
