@@ -481,7 +481,6 @@ app.patch("/forms/:id", async (req, res) => {
         name,
         summary,
         baseQuestions,
-        updated_at: new Date().toISOString(),
       })
       .eq("ID", id)
       .select()
