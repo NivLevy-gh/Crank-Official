@@ -13,6 +13,14 @@ app.use(express.json());
 app.use(cors());
 
 
+process.on("unhandledRejection", (err) => {
+  console.error("UNHANDLED REJECTION:", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+
 
 
 // ... rest of server.js ...
@@ -658,7 +666,6 @@ let summaryObj = await generateCandidateSummaryJSON({
 // =============================
 // START SERVER
 // =============================
-
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {

@@ -121,80 +121,79 @@ export default function Dashboard() {
 
       {/* list */}
       <div className="mt-5 flex flex-col gap-3">
-        {filtered.map((form) => {
-          const publicUrl = `${window.location.origin}/f/${form.share_token}`;
+      {filtered.map((form) => {
+  // If your PUBLIC form is hosted somewhere else, use a dedicated env var:
+  // const publicUrl = `${import.meta.env.VITE_PUBLIC_APP_URL}/f/${form.share_token}`;
+  const publicUrl = `${window.location.origin}/f/${form.share_token}`;
 
-          return (
-            <div
-              key={form.ID}
-              className="rounded-2xl border border-neutral-200 transition duration-300 hover:border-orange-200 hover:scale-101  bg-white px-4 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-orange-100" />
+  return (
+    <div
+      key={form.ID ?? form.id ?? form.share_token}
+      className="rounded-2xl border border-neutral-200 transition duration-300 hover:border-orange-200 hover:scale-101 bg-white px-4 py-3"
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-xl bg-orange-100" />
 
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium text-neutral-900">
-                    {form.name}
-                  </div>
-                  <div className="truncate text-xs text-neutral-500">
-                    {form.summary || "—"}
-                  </div>
-                </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-neutral-900">
+            {form.name}
+          </div>
+          <div className="truncate text-xs text-neutral-500">
+            {form.summary || "—"}
+          </div>
 
-                {/* actions */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => archiveForm(form.ID)}
-                    className="
-                      h-9 rounded-xl px-3 text-xs font-medium
-                      border border-neutral-200 text-neutral-700
-                      hover:bg-neutral-50 transition
-                    "
-                  >
-                    Archive
-                  </button>
+          {/* ✅ #2 DEBUG LINE GOES HERE */}
+          <div className="mt-1 text-[10px] text-red-500">
+            ID debug: {String(form?.ID)} | share_token: {String(form?.share_token)}
+          </div>
+        </div>
 
-                  <button
-                    onClick={() => {
-                      setShareUrl(publicUrl);
-                      setShareOpen(true);
-                    }}
-                    className="
-                      h-9 rounded-xl px-3 text-xs font-medium
-                      border border-neutral-200 text-neutral-700
-                      hover:bg-neutral-50 transition
-                    "
-                  >
-                    Share
-                  </button>
+        {/* actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => archiveForm(form.ID)}
+            className="h-9 rounded-xl px-3 text-xs font-medium
+                       border border-neutral-200 text-neutral-700
+                       hover:bg-neutral-50 transition"
+          >
+            Archive
+          </button>
 
-                  <button
-                    onClick={() => navigate(`/form/${form.ID}/results`)}
-                    className="
-                      h-9 rounded-xl px-3 text-xs font-medium
-                      border border-neutral-200 text-neutral-700
-                      hover:bg-neutral-50 transition
-                    "
-                  >
-                    Results
-                  </button>
+          <button
+            onClick={() => {
+              setShareUrl(publicUrl);
+              setShareOpen(true);
+            }}
+            className="h-9 rounded-xl px-3 text-xs font-medium
+                       border border-neutral-200 text-neutral-700
+                       hover:bg-neutral-50 transition"
+          >
+            Share
+          </button>
 
-                  <button
-                    onClick={() => navigate(`/form/${form.ID}`)}
-                    className="
-                      h-9 rounded-xl px-3 text-xs font-medium
-                      bg-orange-100 text-neutral-900 border border-orange-100
-                      hover:bg-orange-200 transition
-                      active:scale-[0.99]
-                    "
-                  >
-                    Open
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+          <button
+            onClick={() => navigate(`/form/${form.ID}/results`)}
+            className="h-9 rounded-xl px-3 text-xs font-medium
+                       border border-neutral-200 text-neutral-700
+                       hover:bg-neutral-50 transition"
+          >
+            Results
+          </button>
+
+          <button
+            onClick={() => navigate(`/form/${form.ID}`)}
+            className="h-9 rounded-xl px-3 text-xs font-medium
+                       bg-orange-100 text-neutral-900 border border-orange-100
+                       hover:bg-orange-200 transition
+                       active:scale-[0.99]"
+          >
+            Open
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+})} 
 
         {filtered.length === 0 && (
           <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
