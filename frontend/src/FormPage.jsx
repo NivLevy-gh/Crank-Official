@@ -610,7 +610,14 @@ export default function FormPage() {
   
                   <button
                     type="button"
-                    onClick={handlePrimary}
+                    onClick={() => {
+                      if (resumeProfile) {
+                        handlePrimary
+                    } else {
+                      alert("Please submit your resume or wait until it's finished processing")
+                    }
+                      
+                    }}
                     className="h-10 rounded-xl px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
                   >
                     {shouldSubmit ? "Submit" : "Continue"}
