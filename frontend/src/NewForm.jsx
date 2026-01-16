@@ -118,7 +118,6 @@ export default function CreateForm() {
 
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
-      <Navbar />
 
       {/* top gradient header band */}
       <div className="h-28 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
