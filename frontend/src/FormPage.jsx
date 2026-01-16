@@ -30,6 +30,9 @@ export default function FormPage() {
   const [editSummary, setEditSummary] = useState("");
   const [editQuestions, setEditQuestions] = useState([]);
   
+  console.log("VITE_API_URL =", JSON.stringify(import.meta.env.VITE_API_URL));
+console.log("Form id =", id);
+
   const publicUrl = useMemo(() => {
     if (!crank?.share_token) return "";
     return `${window.location.origin}/f/${crank.share_token}`;
