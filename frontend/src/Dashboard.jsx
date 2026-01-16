@@ -122,7 +122,7 @@ export default function Dashboard() {
       {/* list */}
       <div className="mt-5 flex flex-col gap-3">
         {filtered.map((form) => {
-          const publicUrl = "app.intimusai/"`/f/${form.share_token}`;
+          const publicUrl = `${window.location.origin}/f/${form.share_token}`;
 
           return (
             <div
