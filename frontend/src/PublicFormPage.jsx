@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function PublicFormPage() {
   const navigate = useNavigate();
-  const { shareToken } = useParams(); // <-- FIX
+  const { shareToken } = useParams();
 
   const [crank, setCrank] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,11 +23,11 @@ export default function PublicFormPage() {
   const maxAiQuestions = crank?.maxAiQuestions ?? 2;
 
   const aiUsed = history.length;
-  const aiLeft = Math.max(0, maxAiQuestions - aiUsed);
+  const aiLeft = Math.max(0, (maxAiQuestions ?? 0) - aiUsed);
 
   const shouldSubmit = !aiEnabled || (aiLeft === 0 && !aiQuestion);
 
-  // Load PUBLIC form (NO AUTH)
+  // Load PUBLIC form (no auth)
   useEffect(() => {
     const loadForm = async () => {
       try {
@@ -40,12 +40,13 @@ export default function PublicFormPage() {
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setLoadErr(data?.error || `Failed to load form`);
+          setLoadErr(data?.error || "Failed to load form");
           setLoading(false);
           return;
         }
 
-        setCrank(data.form);
+        const form = data.form || data.forms;
+        setCrank(form);
         setLoading(false);
       } catch (e) {
         console.log(e);
@@ -57,7 +58,7 @@ export default function PublicFormPage() {
     loadForm();
   }, [shareToken]);
 
-  // AI next (PUBLIC)
+  // AI (PUBLIC)
   const getNextAiQuestion = async () => {
     if (!crank) return;
     if (!aiEnabled) return alert("AI follow-ups are disabled");
@@ -120,7 +121,7 @@ export default function PublicFormPage() {
       if (!res.ok) return alert(data?.error || "Failed to submit");
 
       alert("Submitted successfully!");
-      navigate("/"); // or a thank-you page
+      navigate("/"); // or a thank you page
     } catch (e) {
       console.log(e);
       alert("Failed to submit");
@@ -137,19 +138,250 @@ export default function PublicFormPage() {
       setHistory((prev) => [...prev, newHistoryItem]);
       setAiQuestion("");
       setAiAnswer("");
+
+      if (aiUsed + 1 >= maxAiQuestions) return;
+      await getNextAiQuestion();
       return;
     }
 
     await getNextAiQuestion();
   };
 
-  // --- KEEP YOUR EXISTING JSX/UI BELOW ---
-  if (loading) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-neutral-600">Loading…</div></div>;
-  if (loadErr) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-red-600">{loadErr}</div></div>;
-  if (!crank) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-neutral-600">Form not found</div></div>;
+  if (loading)
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-sm text-neutral-600">Loading…</div>
+      </div>
+    );
+  if (loadErr)
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-sm text-red-600">{loadErr}</div>
+      </div>
+    );
+  if (!crank)
+    return (
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-sm text-neutral-600">Form not found</div>
+      </div>
+    );
 
   return (
-    // paste your existing UI here
-    <div>...</div>
+    <div className="min-h-screen bg-[rgb(253,249,244)]">
+      {/* subtle top gradient */}
+      <div className="h-36 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
+
+      <div className="-mt-16 pb-16">
+        <div className="mx-auto w-full max-w-4xl px-4">
+          {/* Top card */}
+          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+            <div className="h-1.5 bg-[rgb(242,200,168)]" />
+
+            <div className="p-6 sm:p-7">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                {/* Title / summary */}
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900">
+                    {crank.name}
+                  </h1>
+                  <p className="mt-2 text-sm sm:text-[15px] leading-relaxed text-neutral-600">
+                    {crank.summary}
+                  </p>
+
+                  {/* Meta badges */}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                      AI: {aiEnabled ? "On" : "Off"}
+                    </span>
+
+                    {aiEnabled && (
+                      <span className="rounded-full bg-[rgb(251,236,221)] px-3 py-1 text-xs font-medium text-[rgb(166,96,43)]">
+                        Follow-ups: {aiUsed}/{maxAiQuestions}
+                      </span>
+                    )}
+
+                    {crank?.public && (
+                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                        Public
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right actions */}
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <button
+                    onClick={() => navigate("/")}
+                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                  >
+                    Exit
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Resume + Questions layout */}
+          <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {/* Left column */}
+            <div className="lg:col-span-1 space-y-5">
+              {/* Resume */}
+              <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
+                <div className="p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-neutral-900">
+                        Resume
+                      </div>
+                      <div className="mt-1 text-xs text-neutral-500">
+                        Optional. Helps personalize follow-ups.
+                      </div>
+                    </div>
+
+                    {resumeProfile ? (
+                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                        ✓ Loaded
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-600">
+                        Optional
+                      </span>
+                    )}
+                  </div>
+
+                  <label className="mt-4 flex cursor-pointer items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm transition hover:border-[rgb(242,200,168)] hover:bg-[rgb(251,236,221)]">
+                    <span className="font-medium text-neutral-800">
+                      {resumeUploading ? "Processing…" : "Upload PDF"}
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      {resumeUploading ? "Please wait" : "Choose file"}
+                    </span>
+
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        // You don't currently have a public resume upload endpoint.
+                        // This prevents a confusing 404.
+                        alert(
+                          "Resume upload isn't enabled on the public link yet. If you want it, we’ll add: POST /public/forms/:shareToken/resume"
+                        );
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+
+                  {aiEnabled && (
+                    <div className="mt-4 rounded-2xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] px-4 py-3">
+                      <div className="text-xs font-semibold text-[rgb(166,96,43)]">
+                        AI follow-ups
+                      </div>
+                      <div className="mt-1 text-xs text-neutral-700">
+                        {aiLeft} remaining
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right column: questions */}
+            <div className="lg:col-span-2 space-y-4">
+              {questions.map((q, i) => (
+                <div
+                  key={i}
+                  className="rounded-3xl border border-neutral-200 bg-white shadow-sm"
+                >
+                  <div className="p-6">
+                    <div className="text-sm font-semibold text-neutral-900">
+                      {q}
+                    </div>
+                    <textarea
+                      className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                      rows={4}
+                      placeholder="Your answer"
+                      value={answers[i] || ""}
+                      onChange={(e) =>
+                        setAnswers((prev) => ({ ...prev, [i]: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {/* AI follow-up section */}
+              {aiEnabled && aiQuestion && (
+                <div className="rounded-3xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between">
+                      <span className="rounded-lg bg-white/70 px-2.5 py-1 text-xs font-semibold text-[rgb(166,96,43)]">
+                        AI follow-up
+                      </span>
+                      <span className="text-xs font-semibold text-[rgb(166,96,43)]">
+                        {aiLeft} left
+                      </span>
+                    </div>
+
+                    <div className="mt-3 text-sm font-semibold text-neutral-900">
+                      {aiQuestion}
+                    </div>
+
+                    <textarea
+                      className="mt-3 w-full rounded-2xl border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(222,150,90)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                      rows={4}
+                      placeholder="Your answer"
+                      value={aiAnswer}
+                      onChange={(e) => setAiAnswer(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom actions */}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                >
+                  Exit
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // If you want resume REQUIRED, keep this.
+                      // If resume is optional, delete this whole if/else and just call handlePrimary().
+                      if (resumeProfile) {
+                        handlePrimary();
+                      } else {
+                        alert(
+                          "Please upload your resume first (or we can make resume optional)."
+                        );
+                      }
+                    }}
+                    className="h-10 rounded-xl px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
+                  >
+                    {shouldSubmit ? "Submit" : "Continue"}
+                  </button>
+                </div>
+              </div>
+
+              {/* tiny hint if no AI question yet */}
+              {aiEnabled && !aiQuestion && aiLeft > 0 && (
+                <div className="text-xs text-neutral-500 px-1">
+                  Click <span className="font-semibold">Continue</span> to get an AI follow-up (optional).
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
