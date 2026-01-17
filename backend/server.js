@@ -123,7 +123,6 @@ app.get("/forms/:id", async (req, res) => {
     .eq("user_id", user.id)
     .single();
 
-  if (error || !data) return res.status(404).json({ error: "Form not found" });
 
   return res.json({ form: data });
 });
@@ -434,7 +433,7 @@ app.get("/public/forms/:shareToken", async (req, res) => {
     .eq("share_token", shareToken)
     .single();
 
-  if (error || !data) return res.status(404).json({ error: "Form not found" });
+
   if (!data.public) return res.status(403).json({ error: "Form is not public" });
 
   return res.json({ form: data });
