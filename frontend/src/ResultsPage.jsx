@@ -171,7 +171,6 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
-      <Navbar />
 
       {/* peach top gradient */}
       <div className="h-28 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
