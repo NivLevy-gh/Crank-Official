@@ -616,6 +616,124 @@ app.get("/public/forms/:shareToken", async (req, res) => {
   return res.json({ form: data });
 });
 
+// =============================
+// PUBLIC: Upload resume (no auth)
+// =============================
+app.post("/public/forms/:shareToken/resume", upload.single("resume"), async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+
+    // 0) Validate form + is public
+    const { data: form, error: formErr } = await supabase
+      .from("Forms")
+      .select("ID, public")
+      .eq("share_token", shareToken)
+      .single();
+
+    if (formErr || !form) return res.status(404).json({ error: "Form not found" });
+    if (!form.public) return res.status(403).json({ error: "Form is not public" });
+
+    // 1) Validate file
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (req.file.mimetype !== "application/pdf") {
+      return res.status(400).json({ error: "Resume must be a PDF" });
+    }
+
+    // 2) Upload to Storage
+    const fileName = slugifyFileName(req.file.originalname);
+    const path = `public/${form.ID}/${Date.now()}_${fileName}`;
+
+    const { error: uploadErr } = await supabaseAdmin.storage
+      .from("resumes")
+      .upload(path, req.file.buffer, {
+        contentType: "application/pdf",
+        upsert: false,
+      });
+
+    if (uploadErr) return res.status(500).json({ error: uploadErr.message });
+
+    // 3) Extract text
+    const parsed = await pdfParse(req.file.buffer);
+    const resumeText = (parsed.text || "").slice(0, 12000);
+
+    if (!resumeText.trim()) {
+      return res.status(400).json({ error: "Could not read text from PDF" });
+    }
+
+    // 4) Parse to resumeProfile JSON
+    const system = `You extract structured resume info for hiring screening.
+Return ONLY valid JSON. No markdown.`;
+
+    const userMsg = `
+Extract a compact JSON object from this resume text.
+
+Return JSON with these keys:
+{
+  "name": string|null,
+  "email": string|null,
+  "work_experience": [
+    {
+      "company": string,
+      "role": string,
+      "duration": string|null,
+      "description": string,
+      "highlights": string[]
+    }
+  ],
+  "skills": string[],
+  "education": [{"school": string|null, "degree": string|null, "major": string|null}],
+  "years_experience": number|null,
+  "projects": [
+    {
+      "name": string,
+      "description": string,
+      "technologies": string[]
+    }
+  ]
+}
+
+Resume text:
+${resumeText}
+`.trim();
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: userMsg },
+      ],
+    });
+
+    const raw = completion.choices?.[0]?.message?.content?.trim() || "";
+
+    let resumeProfile;
+    try {
+      resumeProfile = JSON.parse(raw);
+    } catch {
+      return res.status(500).json({ error: "Failed to parse resume JSON" });
+    }
+
+    // 5) Signed URL (optional)
+    const { data: signed, error: signedErr } = await supabaseAdmin.storage
+      .from("resumes")
+      .createSignedUrl(path, 60 * 60);
+
+    if (signedErr) return res.status(500).json({ error: signedErr.message });
+
+    return res.json({
+      resumeUrl: signed.signedUrl,
+      resumePath: path,
+      resumeProfile,
+    });
+  } catch (err) {
+    console.error("Public resume processing failed:", err);
+    return res.status(500).json({
+      error: "Resume processing failed",
+      detail: err?.message || String(err),
+    });
+  }
+});
 /**
  * ✅ WHAT THIS IS FOR:
  * This is the PUBLIC version of AI follow-ups — used by /f/:shareToken pages

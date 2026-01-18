@@ -256,13 +256,43 @@ export default function PublicFormPage() {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-
-                        // You don't currently have a public resume upload endpoint.
-                        // This prevents a confusing 404.
-                        alert(
-                          "Resume upload isn't enabled on the public link yet. If you want it, we’ll add: POST /public/forms/:shareToken/resume"
-                        );
-                        e.target.value = "";
+                      
+                        if (file.type !== "application/pdf") {
+                          alert("Please upload a PDF.");
+                          e.target.value = "";
+                          return;
+                        }
+                      
+                        setResumeUploading(true);
+                      
+                        try {
+                          const formData = new FormData();
+                          formData.append("resume", file);
+                      
+                          const res = await fetch(
+                            `${import.meta.env.VITE_API_URL}/public/forms/${shareToken}/resume`,
+                            {
+                              method: "POST",
+                              body: formData,
+                            }
+                          );
+                      
+                          const data = await res.json().catch(() => ({}));
+                      
+                          if (!res.ok) {
+                            alert(data?.error || "Resume upload failed");
+                            return;
+                          }
+                      
+                          setResumeProfile(data.resumeProfile);
+                          alert("Resume processed ✅");
+                        } catch (err) {
+                          console.log(err);
+                          alert("Resume upload failed");
+                        } finally {
+                          setResumeUploading(false);
+                          e.target.value = ""; // lets them re-upload same file if needed
+                        }
                       }}
                     />
                   </label>
