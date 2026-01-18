@@ -44,11 +44,21 @@ const upload = multer({ storage: multer.memoryStorage() });
 // --------------------
 async function getUserFromRequest(req) {
   const auth = req.headers.authorization || "";
-  const token = auth.replace("Bearer ", "");
+  const token = auth.replace("Bearer ", "").trim();
   if (!token) return null;
 
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error) return null;
+  const supabaseAuth = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY,
+    {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    }
+  );
+
+  const { data, error } = await supabaseAuth.auth.getUser();
+  if (error || !data?.user) return null;
+
   return data.user;
 }
 

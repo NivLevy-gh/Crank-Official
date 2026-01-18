@@ -321,9 +321,18 @@ export default function FormPage() {
   // AI next question
   // -------------------------
   const fetchNextAiQuestion = async (combinedHistory) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      notify("error", "Not logged in", "Please log in again.");
+      return null;
+    }
     const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // ✅ REQUIRED
+      },
       body: JSON.stringify({
         history: combinedHistory,
         baseQuestions: crank.baseQuestions,
@@ -331,15 +340,15 @@ export default function FormPage() {
         resumeProfile,
       }),
     });
-
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       notify("error", "AI failed", data?.error || "AI request failed.");
       return null;
     }
-
     return (data.nextQuestion || "").trim();
   };
+  
+  
 
   // -------------------------
   // Submit answers
