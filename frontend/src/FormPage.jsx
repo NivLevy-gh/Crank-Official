@@ -343,31 +343,29 @@ export default function FormPage() {
   onClick={async () => {
     if (!crank) return;
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return alert("Not logged in");
+
     const nextPublic = !crank.public;
 
-    // 1. Update UI immediately (optimistic)
-    setCrank(prev => ({
-      ...prev,
-      public: nextPublic,
-    }));
+    // optimistic UI
+    setCrank((prev) => ({ ...prev, public: nextPublic }));
 
-    // 2. Persist to backend
     const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${crank.ID}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // ✅ REQUIRED
+      },
       body: JSON.stringify({ public: nextPublic }),
     });
 
     if (!res.ok) {
-      // rollback if server fails
-      setCrank(prev => ({
-        ...prev,
-        public: !nextPublic,
-      }));
+      setCrank((prev) => ({ ...prev, public: !nextPublic }));
       alert("Failed to update visibility");
     }
   }}
-  className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white"
 >
   {crank.public ? "Make Private" : "Make Public"}
 </button>
