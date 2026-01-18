@@ -38,7 +38,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // =============================
 // HELPERS
-// =============================
+// =============================s
 async function getUserFromRequest(req) {
   const auth = req.headers.authorization || "";
   const token = auth.replace("Bearer ", "");
@@ -230,64 +230,66 @@ ${resumeText}
 });
 
 app.post("/forms/:id/ai-next", async (req, res) => {
-  const { id } = req.params;
   const { summary, history, resumeProfile } = req.body;
 
   try {
     const compact = {
-      role_summary: summary || "",
+      form_summary: summary || "",
       resume: resumeProfile || {},
-      history: (history || []).slice(-12), // keep recent context, avoid huge prompts
+      history: (history || []).slice(-12),
     };
 
     const system = `
-You are a senior recruiter running a real phone screen.
-Your questions must sound human and specific — never generic, never "AI generated".
+You are a sharp, human recruiter doing a real screening call.
+
+Your job: learn something NEW and specific about the candidate each question.
 
 Hard rules:
-- Ask ONE question only.
-- It must be grounded in ONE concrete resume/detail (company, role, project, tech, metric, highlight).
-- Never repeat an area already covered in history.
-- Avoid canned phrases like "walk me through" / "tell me about" more than once.
-- No fluff, no buzzwords, no "alignment" language.
+- Ask EXACTLY ONE question.
+- Do NOT restate their answer or say "You did..." / "I see you..." / "I noticed..."
+- Do NOT ask generic questions that could apply to anyone.
+- The question MUST include a resume-specific noun (company OR project OR tool/tech OR metric).
+- Must probe one of: ownership, tradeoffs, decisions, debugging, scope, impact, collaboration.
+- No multi-part questions. No "and also".
+- 8–18 words.
+- Avoid filler like "tell me more", "walk me through", "elaborate" unless absolutely needed.
+- Do not repeat topics already covered in history.
 
-Style:
-- 1–2 sentences max.
-- Conversational, natural.
-- Not overly formal.
-- Should take 60–120 seconds to answer well (not yes/no).
+If resume is missing or empty:
+- Ask for ONE concrete example project with stack + outcome.
+
+Return ONLY the question text. No quotes, no bullets.
 `.trim();
 
     const user = `
-You must do this in two steps internally:
-
-STEP A — Choose one "anchor":
-Pick exactly ONE anchor from the resume that is NOT already discussed in history.
-An anchor is one of:
-- a specific work_experience highlight
-- a specific project
-- a specific tool/skill used in a specific context
-- a metric/outcome (if present)
-
-STEP B — Ask a strong question:
-Write a question that:
-- references the anchor explicitly
-- probes decision-making, tradeoffs, scope, or impact
-- feels like a real interviewer wrote it
-
-Anti-generic checks:
-- If the question could apply to any candidate, it's invalid.
-- If the question doesn't mention a resume-specific noun (project/company/tool), it's invalid.
-
-Return ONLY the question text. No quotes. No bullet. No extra formatting.
-
-INPUT:
+Context (JSON):
 ${JSON.stringify(compact, null, 2)}
+
+Pick an anchor and ask a question.
+
+Step 1 — Pick ONE anchor:
+Choose exactly ONE anchor from resume that is NOT already discussed in history:
+- specific company + role highlight
+- specific project name
+- specific technology used in a specific context
+- a metric/result if present
+
+Step 2 — Ask ONE question:
+Write a natural follow-up that references the anchor explicitly and probes signal.
+
+Good examples of tone (copy this vibe):
+- "What was the hardest decision you made on the Stripe billing migration?"
+- "Why did you choose Postgres for that project instead of DynamoDB?"
+- "What broke in production, and how did you narrow it down?"
+- "What did you personally own end-to-end on the React redesign?"
+- "What metric moved, and what change actually caused it?"
+
+Now produce ONE question.
 `.trim();
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.55, // lower than 0.7 = less "random template" weirdness
+      temperature: 0.45,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -297,17 +299,29 @@ ${JSON.stringify(compact, null, 2)}
     let nextQuestion = completion.choices?.[0]?.message?.content?.trim() || "";
     nextQuestion = nextQuestion.replace(/^["'`•\-\s]+/, "").replace(/["'`]+$/, "").trim();
 
-    // Final guard: reject generic questions (quick heuristic)
+    // Simple generic filter
+    const genericPatterns = [
+      /tell me about yourself/i,
+      /strengths|weaknesses/i,
+      /why are you interested/i,
+      /describe your experience/i,
+      /can you elaborate/i,
+      /walk me through/i,
+      /your background/i,
+      /you did/i,
+      /i noticed/i,
+      /i see/i,
+    ];
+
     const tooGeneric =
       nextQuestion.length < 8 ||
-      !/[A-Za-z]/.test(nextQuestion) ||
-      !/[?]$/.test(nextQuestion) ||
-      /(candidate|your resume|your background|tell me about yourself|strengths|weaknesses)/i.test(nextQuestion);
+      !nextQuestion.endsWith("?") ||
+      genericPatterns.some((re) => re.test(nextQuestion));
 
     if (!nextQuestion || tooGeneric) {
       return res.json({
         nextQuestion:
-          "On your most recent project, what tradeoff did you make that you still think about?",
+          "What tradeoff did you make on your most impactful project, and why?",
       });
     }
 
@@ -524,43 +538,115 @@ app.post("/public/forms/:shareToken/ai-next", async (req, res) => {
   const { shareToken } = req.params;
   const { summary, history, resumeProfile } = req.body;
 
+  // 1. Validate form + public access
   const { data: form, error } = await supabase
     .from("Forms")
     .select("ID, public")
     .eq("share_token", shareToken)
     .single();
 
-  if (error || !form) return res.status(404).json({ error: "Form not found" });
-  if (!form.public) return res.status(403).json({ error: "Form is not public" });
+  if (error || !form) {
+    return res.status(404).json({ error: "Form not found" });
+  }
+
+  if (!form.public) {
+    return res.status(403).json({ error: "Form is not public" });
+  }
 
   try {
-    const prompt = `
-You are an AI SCREENING INTERVIEWER.
+    // 2. Compact context (prevents prompt bloat)
+    const compact = {
+      role_summary: summary || "",
+      resume: resumeProfile || {},
+      history: (history || []).slice(-12),
+    };
 
-ROLE CONTEXT:
-${summary || ""}
+    // 3. SYSTEM PROMPT (same intelligence as private)
+    const system = `
+You are a senior recruiter conducting a real screening interview.
 
-Resume JSON:
-${JSON.stringify(resumeProfile || {})}
+Your questions must sound human, specific, and intentional.
+Never generic. Never robotic. Never templated.
 
-Conversation so far:
-${JSON.stringify(history || [])}
+Hard rules:
+- Ask ONE question only.
+- It must be grounded in ONE concrete resume detail.
+- Do NOT repeat topics already covered in history.
+- Avoid phrases like "you mentioned", "tell me about", "walk me through" more than once.
+- No fluff, no buzzwords, no corporate language.
 
-Ask ONE deep follow-up question.
-Return ONLY the question text.
+Style:
+- 1–2 sentences max.
+- Conversational.
+- Curious, not interrogative.
+- Should take 60–120 seconds to answer well.
 `.trim();
 
+    // 4. USER PROMPT (forces grounding + anti-generic behavior)
+    const user = `
+INTERNAL PROCESS (do not reveal):
+
+STEP A — Choose ONE anchor NOT discussed yet:
+- a specific role + company
+- a specific project
+- a tool used in context
+- a measurable outcome
+
+STEP B — Ask a question that:
+- explicitly references the anchor
+- probes decision-making, tradeoffs, or impact
+- could NOT be asked to a different candidate
+
+INVALID if:
+- it could apply to anyone
+- it lacks a resume-specific noun
+- it sounds like HR filler
+
+Return ONLY the question text. No formatting.
+
+INPUT:
+${JSON.stringify(compact, null, 2)}
+`.trim();
+
+    // 5. Call OpenAI
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.3,
-      messages: [{ role: "user", content: prompt }],
+      temperature: 0.55,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
     });
 
-    const nextQuestion = completion.choices?.[0]?.message?.content?.trim() || "";
+    let nextQuestion =
+      completion.choices?.[0]?.message?.content?.trim() || "";
+
+    // 6. Clean up formatting
+    nextQuestion = nextQuestion
+      .replace(/^["'`•\-\s]+/, "")
+      .replace(/["'`]+$/, "")
+      .trim();
+
+    // 7. Final safety guard (anti-generic)
+    const tooGeneric =
+      nextQuestion.length < 10 ||
+      !/[?]$/.test(nextQuestion) ||
+      /(your background|strengths|weaknesses|tell me about yourself|resume|experience)/i.test(
+        nextQuestion
+      );
+
+    if (!nextQuestion || tooGeneric) {
+      return res.json({
+        nextQuestion:
+          "On your most recent project, what decision did you make that had the biggest downstream impact?",
+      });
+    }
+
+    // 8. Success
     return res.json({ nextQuestion });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "AI failed" });
+    console.error("Public AI error:", err);
+    return res.status(500).json({ error: "AI request failed" });
   }
 });
 
