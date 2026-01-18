@@ -4,20 +4,26 @@ import { supabase } from "./supabaseClient";
 import Dashboard from "./Dashboard";
 import AppShell from "./AppShell";
 
-export default function Form() {
+export default function DashboardPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
     const checkUser = async () => {
-      const result = await supabase.auth.getUser();
-      if (!result.data.user) navigate("/login");
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data?.user) navigate("/login");
+      } catch (e) {
+        console.log(e);
+        navigate("/login");
+      }
     };
+
     checkUser();
   }, [navigate]);
 
   return (
     <AppShell>
-      {/* page header (keeps your copy) */}
+      {/* page header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-semibold text-neutral-900">Forms</div>
@@ -27,7 +33,6 @@ export default function Form() {
         </div>
       </div>
 
-      {/* your existing cards */}
       <div className="mt-6">
         <Dashboard />
       </div>
