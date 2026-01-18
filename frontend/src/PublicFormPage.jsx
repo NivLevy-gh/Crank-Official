@@ -209,14 +209,6 @@ export default function PublicFormPage() {
                 </div>
 
                 {/* Right actions */}
-                <div className="flex flex-wrap gap-2 sm:justify-end">
-                  <button
-                    onClick={() => navigate("/")}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
-                  >
-                    Exit
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -343,13 +335,6 @@ export default function PublicFormPage() {
 
               {/* Bottom actions */}
               <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={() => navigate("/")}
-                  className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
-                >
-                  Exit
-                </button>
 
                 <div className="flex gap-2">
                   <button

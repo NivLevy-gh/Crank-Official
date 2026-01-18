@@ -268,7 +268,8 @@ export default function FormPage() {
   if (loading) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-neutral-600">Loading…</div></div>;
   if (loadErr) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-red-600">{loadErr}</div></div>;
   if (!crank) return <div className="min-h-screen bg-neutral-50 flex items-center justify-center"><div className="text-sm text-neutral-600">Form not found</div></div>;
-
+ 
+  
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       {/* subtle top gradient */}
@@ -339,14 +340,37 @@ export default function FormPage() {
                   </button>
   
                   <button
-                    onClick={() => {
-                      if (!publicUrl) return alert("No share link yet.");
-                      window.open(publicUrl, "_blank");
-                    }}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
-                  >
-                    View public
-                  </button>
+  onClick={async () => {
+    if (!crank) return;
+
+    const nextPublic = !crank.public;
+
+    // 1. Update UI immediately (optimistic)
+    setCrank(prev => ({
+      ...prev,
+      public: nextPublic,
+    }));
+
+    // 2. Persist to backend
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${crank.ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ public: nextPublic }),
+    });
+
+    if (!res.ok) {
+      // rollback if server fails
+      setCrank(prev => ({
+        ...prev,
+        public: !nextPublic,
+      }));
+      alert("Failed to update visibility");
+    }
+  }}
+  className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white"
+>
+  {crank.public ? "Make Private" : "Make Public"}
+</button>
   
                   <button
                     onClick={() => {
