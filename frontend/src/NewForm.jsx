@@ -181,13 +181,11 @@ export default function CreateForm() {
 
             <Card
               title="Adaptive interview questions"
-              subtitle="AI can ask a small number of follow-ups based on responses."
             >
               <Toggle
                 checked={aiEnabled}
                 onChange={setAiEnabled}
                 label="Enable AI follow-up questions"
-                description="Keeps the form short, but still deep."
               />
 
               {aiEnabled && (
@@ -210,7 +208,6 @@ export default function CreateForm() {
                     "
                   />
                   <div className="mt-2 text-xs text-neutral-500">
-                    Tip: 2–4 is the sweet spot.
                   </div>
                 </div>
               )}
