@@ -1,5 +1,41 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+/**
+ * Lightweight toast (replaces alert()).
+ * No dimmed background, no focus/tab weirdness.
+ */
+function Toast({ toast, onClose }) {
+  if (!toast) return null;
+
+  const styles =
+    toast.type === "error"
+      ? "border-red-200 bg-red-50 text-red-800"
+      : toast.type === "success"
+      ? "border-green-200 bg-green-50 text-green-800"
+      : "border-neutral-200 bg-white text-neutral-800";
+
+  return (
+    <div className="fixed left-1/2 top-4 z-[9999] w-[92%] max-w-md -translate-x-1/2">
+      <div className={`rounded-2xl border px-4 py-3 shadow-lg ${styles}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="text-sm font-semibold">{toast.title || "Notice"}</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-sm opacity-70 hover:bg-black/5"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        {toast.message && (
+          <div className="mt-1 text-sm opacity-90">{toast.message}</div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PublicFormPage() {
   const navigate = useNavigate();
@@ -10,12 +46,21 @@ export default function PublicFormPage() {
   const [loadErr, setLoadErr] = useState("");
 
   const [answers, setAnswers] = useState({});
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState([]); // AI Q/A only
   const [aiQuestion, setAiQuestion] = useState("");
   const [aiAnswer, setAiAnswer] = useState("");
 
   const [resumeProfile, setResumeProfile] = useState(null);
   const [resumeUploading, setResumeUploading] = useState(false);
+
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  const notify = (type, title, message) => {
+    setToast({ type, title, message });
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 2500);
+  };
 
   const questions = useMemo(() => crank?.baseQuestions || [], [crank]);
 
@@ -25,9 +70,14 @@ export default function PublicFormPage() {
   const aiUsed = history.length;
   const aiLeft = Math.max(0, (maxAiQuestions ?? 0) - aiUsed);
 
+  // Submit when:
+  // - AI disabled OR
+  // - used all followups AND no current question displayed
   const shouldSubmit = !aiEnabled || (aiLeft === 0 && !aiQuestion);
 
+  // -------------------------
   // Load PUBLIC form (no auth)
+  // -------------------------
   useEffect(() => {
     const loadForm = async () => {
       try {
@@ -40,12 +90,18 @@ export default function PublicFormPage() {
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setLoadErr(data?.error || "Failed to load form");
+          setLoadErr(data?.error || `Failed to load form (${res.status})`);
           setLoading(false);
           return;
         }
 
         const form = data.form || data.forms;
+        if (!form) {
+          setLoadErr("Form not found.");
+          setLoading(false);
+          return;
+        }
+
         setCrank(form);
         setLoading(false);
       } catch (e) {
@@ -58,19 +114,70 @@ export default function PublicFormPage() {
     loadForm();
   }, [shareToken]);
 
-  // AI (PUBLIC)
-  const getNextAiQuestion = async () => {
-    if (!crank) return;
-    if (!aiEnabled) return alert("AI follow-ups are disabled");
-    if (aiLeft <= 0) return alert(`Max ${maxAiQuestions} AI questions reached`);
-    if (aiQuestion) return alert("Answer current AI question first");
+  // -------------------------
+  // Resume upload (PUBLIC)
+  // -------------------------
+  const uploadResume = async (file) => {
+    if (!file) return;
 
-    const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
+    if (file.type !== "application/pdf") {
+      notify("error", "Invalid file", "Please upload a PDF.");
+      return;
+    }
+
+    try {
+      setResumeUploading(true);
+
+      const formData = new FormData();
+      formData.append("resume", file);
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/public/forms/${shareToken}/resume`,
+        { method: "POST", body: formData }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        notify("error", "Resume failed", data?.error || "Resume upload failed.");
+        return;
+      }
+
+      setResumeProfile(data.resumeProfile);
+      notify("success", "Resume processed", "Resume is loaded and ready.");
+    } catch (err) {
+      console.log(err);
+      notify("error", "Resume failed", "Resume upload failed.");
+    } finally {
+      setResumeUploading(false);
+    }
+  };
+
+  // -------------------------
+  // Build base Q/A snapshot
+  // -------------------------
+  const buildBaseHistory = () =>
+    (crank?.baseQuestions || []).map((q, i) => ({
       question: q,
-      answer: answers[i] || "",
+      answer: (answers[i] || "").trim(),
     }));
 
-    const combinedHistory = [...baseHistory, ...history];
+  // -------------------------
+  // Fetch next AI question (PUBLIC)
+  // IMPORTANT: accepts combinedHistory as input to avoid state timing issues
+  // -------------------------
+  const fetchNextAiQuestion = async (combinedHistory) => {
+    if (!crank) return null;
+
+    if (!aiEnabled) {
+      notify("error", "AI off", "AI follow-ups are disabled for this form.");
+      return null;
+    }
+
+    if (!resumeProfile) {
+      notify("error", "Resume required", "Upload your resume to use AI follow-ups.");
+      return null;
+    }
 
     try {
       const res = await fetch(
@@ -79,7 +186,6 @@ export default function PublicFormPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            summary: crank.summary,
             history: combinedHistory,
             resumeProfile,
           }),
@@ -87,24 +193,32 @@ export default function PublicFormPage() {
       );
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return alert(data?.error || "AI request failed");
+      if (!res.ok) {
+        notify("error", "AI failed", data?.error || "AI request failed.");
+        return null;
+      }
 
-      setAiQuestion(data.nextQuestion || "");
+      return (data.nextQuestion || "").trim();
     } catch (err) {
       console.log(err);
-      alert("AI request failed");
+      notify("error", "AI failed", "AI request failed.");
+      return null;
     }
   };
 
+  // -------------------------
   // Submit (PUBLIC)
+  // -------------------------
   const sendAnswers = async () => {
     if (!crank) return;
 
-    const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
-      question: q,
-      answer: answers[i] || "",
-    }));
+    // Your backend currently requires resumeProfile for public submit.
+    if (!resumeProfile) {
+      notify("error", "Resume required", "Upload your resume before submitting.");
+      return;
+    }
 
+    const baseHistory = buildBaseHistory();
     const fullHistory = [...baseHistory, ...history];
 
     try {
@@ -118,73 +232,111 @@ export default function PublicFormPage() {
       );
 
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return alert(data?.error || "Failed to submit");
+      if (!res.ok) {
+        notify("error", "Submit failed", data?.error || "Failed to submit.");
+        return;
+      }
 
-      alert("Submitted successfully!");
-      navigate("/"); // or a thank you page
+      notify("success", "Submitted", "Thanks — your response was submitted.");
+      window.setTimeout(() => navigate("/"), 600);
     } catch (e) {
       console.log(e);
-      alert("Failed to submit");
+      notify("error", "Submit failed", "Failed to submit.");
     }
   };
 
+  // -------------------------
+  // Primary button behavior (PUBLIC)
+  // - No more "Answer current AI question first" blocking.
+  // - If AI question showing: save answer + maybe fetch next.
+  // - If none showing: fetch first follow-up.
+  // - When done: submit.
+  // -------------------------
   const handlePrimary = async () => {
-    // Submit
+    if (!crank) return;
+
+    // If we're done with follow-ups, submit
     if (shouldSubmit) {
-      return sendAnswers();
-    }
-  
-    // If answering an AI question
-    if (aiQuestion) {
-      if (!aiAnswer.trim()) return;
-  
-      const newItem = {
-        question: aiQuestion,
-        answer: aiAnswer.trim(),
-      };
-  
-      // 1️⃣ Update history
-      setHistory((prev) => [...prev, newItem]);
-  
-      // 2️⃣ Clear current AI question FIRST
-      setAiQuestion("");
-      setAiAnswer("");
-  
-      // 3️⃣ Let React finish state update, THEN ask next question
-      setTimeout(() => {
-        if (aiUsed + 1 < maxAiQuestions) {
-          getNextAiQuestion();
-        }
-      }, 0);
-  
+      await sendAnswers();
       return;
     }
-  
-    // Ask first AI question
-    await getNextAiQuestion();
+
+    // Resume required (matches backend behavior)
+    if (!resumeProfile) {
+      notify("error", "Resume required", "Upload your resume to continue.");
+      return;
+    }
+
+    const baseHistory = buildBaseHistory();
+
+    // If AI question is displayed, save it
+    if (aiQuestion) {
+      const trimmed = (aiAnswer || "").trim();
+      if (!trimmed) {
+        notify("error", "Missing answer", "Type an answer for the AI follow-up.");
+        return;
+      }
+
+      const newItem = { question: aiQuestion, answer: trimmed };
+      const nextHistory = [...history, newItem];
+      const combinedHistory = [...baseHistory, ...nextHistory];
+
+      // Clear UI immediately
+      setHistory(nextHistory);
+      setAiQuestion("");
+      setAiAnswer("");
+
+      // If that was the last slot, stop. Next click becomes Submit.
+      if (nextHistory.length >= maxAiQuestions) {
+        notify("success", "Saved", "AI follow-up saved. You can submit now.");
+        return;
+      }
+
+      // Otherwise fetch the next question using combinedHistory
+      const nextQ = await fetchNextAiQuestion(combinedHistory);
+      if (nextQ) setAiQuestion(nextQ);
+      return;
+    }
+
+    // No AI question yet: fetch first follow-up
+    const combinedHistory = [...baseHistory, ...history];
+    const nextQ = await fetchNextAiQuestion(combinedHistory);
+    if (nextQ) setAiQuestion(nextQ);
   };
 
-  if (loading)
+  // -------------------------
+  // Render guards
+  // -------------------------
+  if (loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-sm text-neutral-600">Loading…</div>
       </div>
     );
-  if (loadErr)
+  }
+
+  if (loadErr) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="text-sm text-red-600">{loadErr}</div>
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-6">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadErr}
+        </div>
       </div>
     );
-  if (!crank)
+  }
+
+  if (!crank) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-sm text-neutral-600">Form not found</div>
       </div>
     );
+  }
 
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
+      <Toast toast={toast} onClose={() => setToast(null)} />
+
       {/* subtle top gradient */}
       <div className="h-36 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
 
@@ -196,7 +348,6 @@ export default function PublicFormPage() {
 
             <div className="p-6 sm:p-7">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                {/* Title / summary */}
                 <div className="min-w-0 flex-1">
                   <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900">
                     {crank.name}
@@ -205,7 +356,6 @@ export default function PublicFormPage() {
                     {crank.summary}
                   </p>
 
-                  {/* Meta badges */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
                       AI: {aiEnabled ? "On" : "Off"}
@@ -217,33 +367,30 @@ export default function PublicFormPage() {
                       </span>
                     )}
 
-                    {crank?.public && (
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                        Public
-                      </span>
-                    )}
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                      Public
+                    </span>
                   </div>
                 </div>
 
-                {/* Right actions */}
+                {/* Right actions (optional) */}
               </div>
             </div>
           </div>
 
-          {/* Resume + Questions layout */}
+          {/* Resume + Questions */}
           <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
             {/* Left column */}
             <div className="lg:col-span-1 space-y-5">
-              {/* Resume */}
               <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-neutral-900">
-                        Resume
+                        Resume (required)
                       </div>
                       <div className="mt-1 text-xs text-neutral-500">
-                        Optional. Helps personalize follow-ups.
+                        Upload a PDF to continue.
                       </div>
                     </div>
 
@@ -252,8 +399,8 @@ export default function PublicFormPage() {
                         ✓ Loaded
                       </span>
                     ) : (
-                      <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-600">
-                        Optional
+                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                        Required
                       </span>
                     )}
                   </div>
@@ -272,44 +419,9 @@ export default function PublicFormPage() {
                       className="hidden"
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
+                        e.target.value = "";
                         if (!file) return;
-                      
-                        if (file.type !== "application/pdf") {
-                          alert("Please upload a PDF.");
-                          e.target.value = "";
-                          return;
-                        }
-                      
-                        setResumeUploading(true);
-                      
-                        try {
-                          const formData = new FormData();
-                          formData.append("resume", file);
-                      
-                          const res = await fetch(
-                            `${import.meta.env.VITE_API_URL}/public/forms/${shareToken}/resume`,
-                            {
-                              method: "POST",
-                              body: formData,
-                            }
-                          );
-                      
-                          const data = await res.json().catch(() => ({}));
-                      
-                          if (!res.ok) {
-                            alert(data?.error || "Resume upload failed");
-                            return;
-                          }
-                      
-                          setResumeProfile(data.resumeProfile);
-                          alert("Resume processed ✅");
-                        } catch (err) {
-                          console.log(err);
-                          alert("Resume upload failed");
-                        } finally {
-                          setResumeUploading(false);
-                          e.target.value = ""; // lets them re-upload same file if needed
-                        }
+                        await uploadResume(file);
                       }}
                     />
                   </label>
@@ -328,7 +440,7 @@ export default function PublicFormPage() {
               </div>
             </div>
 
-            {/* Right column: questions */}
+            {/* Right column: base questions + AI follow-up */}
             <div className="lg:col-span-2 space-y-4">
               {questions.map((q, i) => (
                 <div
@@ -352,7 +464,6 @@ export default function PublicFormPage() {
                 </div>
               ))}
 
-              {/* AI follow-up section */}
               {aiEnabled && aiQuestion && (
                 <div className="rounded-3xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
                   <div className="p-6">
@@ -380,34 +491,19 @@ export default function PublicFormPage() {
                 </div>
               )}
 
-              {/* Bottom actions */}
               <div className="flex items-center justify-between pt-2">
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // If you want resume REQUIRED, keep this.
-                      // If resume is optional, delete this whole if/else and just call handlePrimary().
-                      if (resumeProfile) {
-                        handlePrimary();
-                      } else {
-                        alert(
-                          "Please upload your resume first (or we can make resume optional)."
-                        );
-                      }
-                    }}
-                    className="h-10 rounded-xl px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
-                  >
-                    {shouldSubmit ? "Submit" : "Continue"}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handlePrimary}
+                  className="h-10 rounded-xl px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
+                >
+                  {shouldSubmit ? "Submit" : aiQuestion ? "Continue" : "Start follow-ups"}
+                </button>
               </div>
 
-              {/* tiny hint if no AI question yet */}
               {aiEnabled && !aiQuestion && aiLeft > 0 && (
                 <div className="text-xs text-neutral-500 px-1">
-                  Click <span className="font-semibold">Continue</span> to get an AI follow-up (optional).
+                  Click <span className="font-semibold">Start follow-ups</span> to generate an AI question.
                 </div>
               )}
             </div>
