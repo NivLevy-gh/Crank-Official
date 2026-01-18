@@ -1,3 +1,4 @@
+// server.js
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -9,36 +10,38 @@ import { createClient } from "@supabase/supabase-js";
 import { generateCandidateSummaryJSON } from "./candidateSummary.js";
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(cors());
 
+// --------------------
+// Safety logging
+// --------------------
+process.on("unhandledRejection", (err) => console.error("UNHANDLED REJECTION:", err));
+process.on("uncaughtException", (err) => console.error("UNCAUGHT EXCEPTION:", err));
 
-process.on("unhandledRejection", (err) => {
-  console.error("UNHANDLED REJECTION:", err);
-});
-process.on("uncaughtException", (err) => {
-  console.error("UNCAUGHT EXCEPTION:", err);
-});
+// --------------------
+// Clients
+// --------------------
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("⚠️ Missing OPENAI_API_KEY in env. AI routes will fail.");
+}
 
-
-
-
-// ... rest of server.js ...
-
-// OpenAI + Supabase
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// --------------------
 // Multer
+// --------------------
 const upload = multer({ storage: multer.memoryStorage() });
 
-// =============================
-// HELPERS
-// =============================s
+// --------------------
+// Helpers
+// --------------------
 async function getUserFromRequest(req) {
   const auth = req.headers.authorization || "";
   const token = auth.replace("Bearer ", "");
@@ -46,7 +49,6 @@ async function getUserFromRequest(req) {
 
   const { data, error } = await supabase.auth.getUser(token);
   if (error) return null;
-
   return data.user;
 }
 
@@ -58,28 +60,187 @@ function makeToken() {
   return crypto.randomBytes(16).toString("hex");
 }
 
+function asBool(v) {
+  return v === true || v === "true" || v === 1 || v === "1";
+}
+
+function clampInt(n, min, max, fallback) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(x)));
+}
+
+// NOTE: tiny heuristic — filters obviously generic/robotic output
+function isTooGeneric(q) {
+  const s = (q || "").trim();
+  if (s.length < 12) return true;
+  if (!s.endsWith("?")) return true;
+
+  // “AI-ish”/HR-ish language
+  if (/(alignment|passion|culture fit|weaknesses|strengths|why should we hire|tell me about yourself)/i.test(s)) return true;
+  // Generic lead-ins
+  if (/^(you did|i see|based on|it seems|from your resume)/i.test(s)) return true;
+
+  return false;
+}
+
+function safeJsonParse(v) {
+  try {
+    return JSON.parse(v);
+  } catch {
+    return null;
+  }
+}
+
+// Extract “things already discussed” from history so we don’t repeat areas.
+// This doesn’t have to be perfect — it helps.
+function buildCoveredTopics(history = []) {
+  const text = history
+    .map((qa) => `${qa?.question || ""} ${qa?.answer || ""}`.toLowerCase())
+    .join(" ");
+
+  const tokens = new Set();
+  // pull words that look like tech/company/project tokens
+  for (const m of text.matchAll(/[a-z0-9][a-z0-9\+\.\-_]{2,}/g)) {
+    const w = m[0];
+    if (["the", "and", "for", "with", "you", "your", "this", "that", "from"].includes(w)) continue;
+    tokens.add(w);
+  }
+  return Array.from(tokens).slice(0, 120);
+}
+
+// --------------------
+// AI: “real interviewer” follow-up generator
+// Shared by private + public routes
+// --------------------
+async function generateFollowupQuestion({
+  mode, // "owner" | "public"
+  roleSummary,
+  baseQuestions,
+  history,
+  resumeProfile,
+}) {
+  // Require resume if you want hard enforcement:
+  // (Frontend can still gate, but backend enforcement prevents bypass.)
+  if (!resumeProfile || Object.keys(resumeProfile || {}).length === 0) {
+    return {
+      ok: false,
+      error: "Resume required",
+      status: 400,
+    };
+  }
+
+  const covered = buildCoveredTopics(history || []);
+
+  // Keep prompt compact & deterministic
+  const compact = {
+    mode,
+    role_summary: (roleSummary || "").slice(0, 1200),
+    base_questions: (baseQuestions || []).slice(0, 12),
+    history: (history || []).slice(-12),
+    resume: resumeProfile || {},
+    covered_tokens: covered,
+  };
+
+  const system = `
+You are a senior hiring manager conducting a fast, high-signal screen.
+Your output must feel like a real human wrote it.
+
+You NEVER ask generic questions.
+You ALWAYS anchor to a resume-specific detail (company / project / metric / tool used in context).
+
+Rules (hard):
+- Output EXACTLY one question (no preface, no quotes, no bullets).
+- 1–2 sentences max.
+- Must reference at least ONE specific noun from resumeProfile:
+  company, project name, technology used, metric, feature, domain, or achievement.
+- Must probe decision-making: tradeoffs, scope, constraints, debugging, ownership, impact.
+- No repeating topics already covered (use covered_tokens + history).
+- Avoid robotic phrasing like: "You did X...", "I see...", "Based on your resume..."
+- Avoid canned prompts: "walk me through" / "tell me about" (use at most once TOTAL; prefer alternatives).
+
+Quality checks (hard):
+- If your question could apply to ANY candidate, it is invalid.
+- If your question doesn’t mention something resume-specific, it is invalid.
+
+You may be creative, but never silly: be sharp, concrete, and useful.
+`.trim();
+
+  // Two-step internal plan request but returns ONLY final question text
+  const user = `
+Use this process internally:
+
+Step 1 (ANCHOR): Pick ONE anchor not covered yet.
+Anchors must be taken from resumeProfile.work_experience[].highlights OR resumeProfile.projects[] OR a specific skill used in context.
+
+Step 2 (ARCHETYPE): Choose ONE archetype:
+- Decision+Tradeoff
+- Ownership+Scope
+- DepthCheck(tool-in-context)
+- Reflection/Regret (rare)
+
+Step 3 (QUESTION): Write the best possible question using the chosen anchor + archetype.
+
+Output ONLY the final question sentence(s).
+
+INPUT:
+${JSON.stringify(compact)}
+`.trim();
+
+  const completion = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.55,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  });
+
+  let q = completion.choices?.[0]?.message?.content?.trim() || "";
+  q = q.replace(/^["'`•\-\s]+/, "").replace(/["'`]+$/, "").trim();
+
+  // Guardrail fallback (still anchored-ish but generic-safe)
+  if (!q || isTooGeneric(q)) {
+    // Use a slightly “smart” fallback seeded by resume
+    const company =
+      resumeProfile?.work_experience?.[0]?.company ||
+      resumeProfile?.projects?.[0]?.name ||
+      "your most recent work";
+    q = `On ${company}, what tradeoff did you make that you’d handle differently if the constraints changed (timeline, scale, or reliability)?`;
+  }
+
+  return { ok: true, question: q };
+}
+
 // =============================
-// AUTH ROUTES
+// OWNER / AUTH ROUTES
 // =============================
 
+// CREATE FORM
 app.post("/forms", async (req, res) => {
   const user = await getUserFromRequest(req);
   if (!user) return res.status(401).json({ error: "Not logged in" });
 
-  let { name, summary, baseQuestions, aiEnabled, maxAiQuestions, public: isPublic } = req.body;
+  let {
+    name,
+    summary,
+    baseQuestions,
+    aiEnabled,
+    maxAiQuestions,
+    public: isPublic,
+  } = req.body;
 
-  aiEnabled = Boolean(aiEnabled);
-  maxAiQuestions = Number.isFinite(Number(maxAiQuestions)) ? Number(maxAiQuestions) : 2;
-
+  aiEnabled = asBool(aiEnabled);
+  maxAiQuestions = clampInt(maxAiQuestions, 0, 20, 2);
   const share_token = makeToken();
-  const publicFlag = Boolean(isPublic);
+  const publicFlag = asBool(isPublic);
 
   const { data, error } = await supabase
     .from("Forms")
     .insert({
       name,
       summary,
-      baseQuestions,
+      baseQuestions: Array.isArray(baseQuestions) ? baseQuestions : [],
       user_id: user.id,
       aiEnabled,
       maxAiQuestions,
@@ -90,10 +251,10 @@ app.post("/forms", async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-
   return res.json({ form: data });
 });
 
+// LIST FORMS
 app.get("/forms", async (req, res) => {
   const user = await getUserFromRequest(req);
   if (!user) return res.status(401).json({ error: "Not logged in" });
@@ -101,15 +262,14 @@ app.get("/forms", async (req, res) => {
   const { data, error } = await supabase
     .from("Forms")
     .select("ID, name, summary, baseQuestions, share_token, public, aiEnabled, maxAiQuestions, created_at, archived")
-    //                                                                                                      ^^^^^^^^ ADD THIS
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
-
   return res.json({ forms: data || [] });
 });
 
+// GET ONE FORM
 app.get("/forms/:id", async (req, res) => {
   const user = await getUserFromRequest(req);
   if (!user) return res.status(401).json({ error: "Not logged in" });
@@ -118,15 +278,17 @@ app.get("/forms/:id", async (req, res) => {
 
   const { data, error } = await supabase
     .from("Forms")
-    .select("ID, name, summary, baseQuestions, aiEnabled, maxAiQuestions, share_token, public")
+    .select("ID, name, summary, baseQuestions, aiEnabled, maxAiQuestions, share_token, public, archived")
     .eq("ID", id)
     .eq("user_id", user.id)
     .single();
 
-
+  if (error || !data) return res.status(404).json({ error: "Form not found" });
   return res.json({ form: data });
 });
 
+// UPLOAD + PARSE RESUME (OWNER MODE)
+// Note: This returns resumeProfile you pass into ai-next + responses.
 app.post("/forms/:id/resume", upload.single("resume"), async (req, res) => {
   try {
     const user = await getUserFromRequest(req);
@@ -151,7 +313,6 @@ app.post("/forms/:id/resume", upload.single("resume"), async (req, res) => {
 
     if (uploadErr) return res.status(500).json({ error: uploadErr.message });
 
-    // Dynamic import for pdf-parse
     const parsed = await pdfParse(req.file.buffer);
     const resumeText = (parsed.text || "").slice(0, 12000);
 
@@ -190,6 +351,7 @@ Return JSON with these keys:
   ]
 }
 
+Be strict: if unknown, use null/[].
 Resume text:
 ${resumeText}
 `.trim();
@@ -204,11 +366,8 @@ ${resumeText}
     });
 
     const raw = completion.choices?.[0]?.message?.content?.trim() || "";
-
-    let resumeProfile;
-    try {
-      resumeProfile = JSON.parse(raw);
-    } catch {
+    const resumeProfile = safeJsonParse(raw);
+    if (!resumeProfile) {
       return res.status(500).json({ error: "Failed to parse resume JSON" });
     }
 
@@ -225,131 +384,75 @@ ${resumeText}
     });
   } catch (err) {
     console.error("Resume processing failed:", err);
-    return res.status(500).json({ error: "Resume processing failed", detail: err?.message || String(err) });
+    return res.status(500).json({
+      error: "Resume processing failed",
+      detail: err?.message || String(err),
+    });
   }
 });
 
+// AI NEXT (OWNER / PRIVATE)
 app.post("/forms/:id/ai-next", async (req, res) => {
-  const { summary, history, resumeProfile } = req.body;
+  const user = await getUserFromRequest(req);
+  if (!user) return res.status(401).json({ error: "Not logged in" });
+
+  const { id } = req.params;
+  const { summary, baseQuestions, history, resumeProfile } = req.body;
+
+  // Ensure form belongs to owner (prevents probing others)
+  const { data: form, error } = await supabase
+    .from("Forms")
+    .select("ID, user_id, aiEnabled, maxAiQuestions, summary, baseQuestions")
+    .eq("ID", id)
+    .single();
+
+  if (error || !form) return res.status(404).json({ error: "Form not found" });
+  if (form.user_id !== user.id) return res.status(403).json({ error: "Forbidden" });
+
+  if (form.aiEnabled === false) {
+    return res.status(400).json({ error: "AI follow-ups disabled for this form." });
+  }
 
   try {
-    const compact = {
-      form_summary: summary || "",
-      resume: resumeProfile || {},
-      history: (history || []).slice(-12),
-    };
-
-    const system = `
-You are a sharp, human recruiter doing a real screening call.
-
-Your job: learn something NEW and specific about the candidate each question.
-
-Hard rules:
-- Ask EXACTLY ONE question.
-- Do NOT restate their answer or say "You did..." / "I see you..." / "I noticed..."
-- Do NOT ask generic questions that could apply to anyone.
-- The question MUST include a resume-specific noun (company OR project OR tool/tech OR metric).
-- Must probe one of: ownership, tradeoffs, decisions, debugging, scope, impact, collaboration.
-- No multi-part questions. No "and also".
-- 8–18 words.
-- Avoid filler like "tell me more", "walk me through", "elaborate" unless absolutely needed.
-- Do not repeat topics already covered in history.
-
-If resume is missing or empty:
-- Ask for ONE concrete example project with stack + outcome.
-
-Return ONLY the question text. No quotes, no bullets.
-`.trim();
-
-    const user = `
-Context (JSON):
-${JSON.stringify(compact, null, 2)}
-
-Pick an anchor and ask a question.
-
-Step 1 — Pick ONE anchor:
-Choose exactly ONE anchor from resume that is NOT already discussed in history:
-- specific company + role highlight
-- specific project name
-- specific technology used in a specific context
-- a metric/result if present
-
-Step 2 — Ask ONE question:
-Write a natural follow-up that references the anchor explicitly and probes signal.
-
-Good examples of tone (copy this vibe):
-- "What was the hardest decision you made on the Stripe billing migration?"
-- "Why did you choose Postgres for that project instead of DynamoDB?"
-- "What broke in production, and how did you narrow it down?"
-- "What did you personally own end-to-end on the React redesign?"
-- "What metric moved, and what change actually caused it?"
-
-Now produce ONE question.
-`.trim();
-
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.45,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
+    const out = await generateFollowupQuestion({
+      mode: "owner",
+      roleSummary: summary ?? form.summary,
+      baseQuestions: baseQuestions ?? form.baseQuestions,
+      history,
+      resumeProfile,
     });
 
-    let nextQuestion = completion.choices?.[0]?.message?.content?.trim() || "";
-    nextQuestion = nextQuestion.replace(/^["'`•\-\s]+/, "").replace(/["'`]+$/, "").trim();
-
-    // Simple generic filter
-    const genericPatterns = [
-      /tell me about yourself/i,
-      /strengths|weaknesses/i,
-      /why are you interested/i,
-      /describe your experience/i,
-      /can you elaborate/i,
-      /walk me through/i,
-      /your background/i,
-      /you did/i,
-      /i noticed/i,
-      /i see/i,
-    ];
-
-    const tooGeneric =
-      nextQuestion.length < 8 ||
-      !nextQuestion.endsWith("?") ||
-      genericPatterns.some((re) => re.test(nextQuestion));
-
-    if (!nextQuestion || tooGeneric) {
-      return res.json({
-        nextQuestion:
-          "What tradeoff did you make on your most impactful project, and why?",
-      });
-    }
-
-    return res.json({ nextQuestion });
+    if (!out.ok) return res.status(out.status || 500).json({ error: out.error || "AI failed" });
+    return res.json({ nextQuestion: out.question });
   } catch (err) {
-    console.error("AI error:", err);
+    console.error("AI error (owner):", err);
     return res.status(500).json({ error: "AI request failed" });
   }
 });
 
-
-
+// SUBMIT RESPONSES (OWNER)
 app.post("/forms/:id/responses", async (req, res) => {
   const user = await getUserFromRequest(req);
-if (!user) return res.status(401).json({ error: "Not logged in" });
+  if (!user) return res.status(401).json({ error: "Not logged in" });
 
   const { id } = req.params;
   const { answers, resumeProfile } = req.body;
 
-  if (!answers) return res.status(400).json({ error: "Missing answers" });
+  if (!Array.isArray(answers) || answers.length === 0) {
+    return res.status(400).json({ error: "Missing answers" });
+  }
+  if (!resumeProfile) {
+    return res.status(400).json({ error: "Resume required" });
+  }
 
   const { data: form, error: formErr } = await supabase
     .from("Forms")
-    .select("ID, name, summary")
+    .select("ID, name, summary, user_id")
     .eq("ID", id)
     .single();
 
   if (formErr || !form) return res.status(404).json({ error: "Form not found" });
+  if (form.user_id !== user.id) return res.status(403).json({ error: "Forbidden" });
 
   let summaryObj = null;
   try {
@@ -359,7 +462,6 @@ if (!user) return res.status(401).json({ error: "Not logged in" });
       answers,
       resumeProfile,
     });
-
     if (typeof summaryObj === "string") summaryObj = JSON.parse(summaryObj);
   } catch (e) {
     console.log("AI summary failed:", e);
@@ -378,10 +480,10 @@ if (!user) return res.status(401).json({ error: "Not logged in" });
     .single();
 
   if (insErr) return res.status(500).json({ error: insErr.message });
-
   return res.json({ response: saved });
 });
 
+// RESULTS (OWNER)
 app.get("/forms/:id/results", async (req, res) => {
   const user = await getUserFromRequest(req);
   if (!user) return res.status(401).json({ error: "Not logged in" });
@@ -408,6 +510,7 @@ app.get("/forms/:id/results", async (req, res) => {
   return res.json({ form, responses: responses || [] });
 });
 
+// RESPONSE DETAIL (OWNER)
 app.get("/responses/:responseId", async (req, res) => {
   const user = await getUserFromRequest(req);
   if (!user) return res.status(401).json({ error: "Not logged in" });
@@ -434,32 +537,7 @@ app.get("/responses/:responseId", async (req, res) => {
   return res.json({ response: resp, formName: form.name });
 });
 
-// =============================
-// PUBLIC ROUTES
-// =============================
-
-app.get("/public/forms/:shareToken", async (req, res) => {
-  const { shareToken } = req.params;
-
-  const { data, error } = await supabase
-    .from("Forms")
-    .select("ID, name, summary, baseQuestions, aiEnabled, maxAiQuestions, public")
-    .eq("share_token", shareToken)
-    .single();
-
-
-  if (!data.public) return res.status(403).json({ error: "Form is not public" });
-
-  return res.json({ form: data });
-});
-
-
-// =============================
-// UPDATE FORM (EDIT MODE)
-// =============================
-// =============================
-// UPDATE FORM (EDIT MODE)  ✅ FULL PATCH
-// =============================
+// UPDATE FORM (OWNER PATCH)
 app.patch("/forms/:id", async (req, res) => {
   try {
     const user = await getUserFromRequest(req);
@@ -467,7 +545,6 @@ app.patch("/forms/:id", async (req, res) => {
 
     const { id } = req.params;
 
-    // note: "public" is a reserved-ish word in JS, so we alias it to isPublic
     const {
       name,
       summary,
@@ -478,7 +555,6 @@ app.patch("/forms/:id", async (req, res) => {
       archived,
     } = req.body;
 
-    // 1) Make sure the form belongs to this user
     const { data: form, error: findErr } = await supabase
       .from("Forms")
       .select("ID, user_id")
@@ -488,44 +564,31 @@ app.patch("/forms/:id", async (req, res) => {
     if (findErr || !form) return res.status(404).json({ error: "Form not found" });
     if (form.user_id !== user.id) return res.status(403).json({ error: "Forbidden" });
 
-    // 2) Build a safe update payload (ONLY update what you send)
     const update = {};
-
     if (typeof name === "string") update.name = name;
     if (typeof summary === "string") update.summary = summary;
     if (Array.isArray(baseQuestions)) update.baseQuestions = baseQuestions;
-
     if (typeof isPublic === "boolean") update.public = isPublic;
-
     if (typeof aiEnabled === "boolean") update.aiEnabled = aiEnabled;
 
     if (maxAiQuestions !== undefined) {
-      const n = Number(maxAiQuestions);
-      if (!Number.isFinite(n) || n < 0 || n > 20) {
-        return res.status(400).json({ error: "maxAiQuestions must be a number between 0 and 20" });
-      }
-      update.maxAiQuestions = n;
+      update.maxAiQuestions = clampInt(maxAiQuestions, 0, 20, 2);
     }
 
     if (typeof archived === "boolean") update.archived = archived;
 
-    // If they didn't send anything valid, don't run a blank update
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
 
-    // 3) Persist
     const { data: updated, error: updateErr } = await supabase
       .from("Forms")
       .update(update)
       .eq("ID", id)
-      .select(
-        "ID, name, summary, baseQuestions, share_token, public, aiEnabled, maxAiQuestions, created_at, archived"
-      )
+      .select("ID, name, summary, baseQuestions, share_token, public, aiEnabled, maxAiQuestions, created_at, archived")
       .single();
 
     if (updateErr) return res.status(500).json({ error: updateErr.message });
-
     return res.json({ form: updated });
   } catch (err) {
     console.error("PATCH /forms/:id failed:", err);
@@ -533,126 +596,80 @@ app.patch("/forms/:id", async (req, res) => {
   }
 });
 
+// =============================
+// PUBLIC ROUTES
+// =============================
 
-app.post("/public/forms/:shareToken/ai-next", async (req, res) => {
+// GET PUBLIC FORM (NO AUTH)
+app.get("/public/forms/:shareToken", async (req, res) => {
   const { shareToken } = req.params;
-  const { summary, history, resumeProfile } = req.body;
 
-  // 1. Validate form + public access
-  const { data: form, error } = await supabase
+  const { data, error } = await supabase
     .from("Forms")
-    .select("ID, public")
+    .select("ID, name, summary, baseQuestions, aiEnabled, maxAiQuestions, public")
     .eq("share_token", shareToken)
     .single();
 
-  if (error || !form) {
-    return res.status(404).json({ error: "Form not found" });
-  }
+  if (error || !data) return res.status(404).json({ error: "Form not found" });
+  if (!data.public) return res.status(403).json({ error: "Form is not public" });
 
-  if (!form.public) {
-    return res.status(403).json({ error: "Form is not public" });
+  return res.json({ form: data });
+});
+
+/**
+ * ✅ WHAT THIS IS FOR:
+ * This is the PUBLIC version of AI follow-ups — used by /f/:shareToken pages
+ * where the candidate can fill out the form without logging in.
+ *
+ * You DO need this, because the private route (/forms/:id/ai-next) requires auth
+ * and uses a numeric form ID, not the share token.
+ *
+ * Both routes call the SAME generator function now, so quality is consistent.
+ */
+app.post("/public/forms/:shareToken/ai-next", async (req, res) => {
+  const { shareToken } = req.params;
+  const { history, resumeProfile } = req.body;
+
+  const { data: form, error } = await supabase
+    .from("Forms")
+    .select("ID, summary, baseQuestions, aiEnabled, maxAiQuestions, public")
+    .eq("share_token", shareToken)
+    .single();
+
+  if (error || !form) return res.status(404).json({ error: "Form not found" });
+  if (!form.public) return res.status(403).json({ error: "Form is not public" });
+  if (form.aiEnabled === false) {
+    return res.status(400).json({ error: "AI follow-ups disabled for this form." });
   }
 
   try {
-    // 2. Compact context (prevents prompt bloat)
-    const compact = {
-      role_summary: summary || "",
-      resume: resumeProfile || {},
-      history: (history || []).slice(-12),
-    };
-
-    // 3. SYSTEM PROMPT (same intelligence as private)
-    const system = `
-You are a senior recruiter conducting a real screening interview.
-
-Your questions must sound human, specific, and intentional.
-Never generic. Never robotic. Never templated.
-
-Hard rules:
-- Ask ONE question only.
-- It must be grounded in ONE concrete resume detail.
-- Do NOT repeat topics already covered in history.
-- Avoid phrases like "you mentioned", "tell me about", "walk me through" more than once.
-- No fluff, no buzzwords, no corporate language.
-
-Style:
-- 1–2 sentences max.
-- Conversational.
-- Curious, not interrogative.
-- Should take 60–120 seconds to answer well.
-`.trim();
-
-    // 4. USER PROMPT (forces grounding + anti-generic behavior)
-    const user = `
-INTERNAL PROCESS (do not reveal):
-
-STEP A — Choose ONE anchor NOT discussed yet:
-- a specific role + company
-- a specific project
-- a tool used in context
-- a measurable outcome
-
-STEP B — Ask a question that:
-- explicitly references the anchor
-- probes decision-making, tradeoffs, or impact
-- could NOT be asked to a different candidate
-
-INVALID if:
-- it could apply to anyone
-- it lacks a resume-specific noun
-- it sounds like HR filler
-
-Return ONLY the question text. No formatting.
-
-INPUT:
-${JSON.stringify(compact, null, 2)}
-`.trim();
-
-    // 5. Call OpenAI
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.55,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
+    const out = await generateFollowupQuestion({
+      mode: "public",
+      roleSummary: form.summary,
+      baseQuestions: form.baseQuestions,
+      history,
+      resumeProfile,
     });
 
-    let nextQuestion =
-      completion.choices?.[0]?.message?.content?.trim() || "";
-
-    // 6. Clean up formatting
-    nextQuestion = nextQuestion
-      .replace(/^["'`•\-\s]+/, "")
-      .replace(/["'`]+$/, "")
-      .trim();
-
-    // 7. Final safety guard (anti-generic)
-    const tooGeneric =
-      nextQuestion.length < 10 ||
-      !/[?]$/.test(nextQuestion) ||
-      /(your background|strengths|weaknesses|tell me about yourself|resume|experience)/i.test(
-        nextQuestion
-      );
-
-    if (!nextQuestion || tooGeneric) {
-      return res.json({
-        nextQuestion:
-          "On your most recent project, what decision did you make that had the biggest downstream impact?",
-      });
-    }
-
-    // 8. Success
-    return res.json({ nextQuestion });
+    if (!out.ok) return res.status(out.status || 500).json({ error: out.error || "AI failed" });
+    return res.json({ nextQuestion: out.question });
   } catch (err) {
-    console.error("Public AI error:", err);
-    return res.status(500).json({ error: "AI request failed" });
+    console.error("AI error (public):", err);
+    return res.status(500).json({ error: "AI failed" });
   }
 });
 
+// SUBMIT PUBLIC RESPONSE (NO AUTH)
 app.post("/public/forms/:shareToken/responses", async (req, res) => {
   const { shareToken } = req.params;
   const { answers, resumeProfile } = req.body;
+
+  if (!Array.isArray(answers) || answers.length === 0) {
+    return res.status(400).json({ error: "Missing answers" });
+  }
+  if (!resumeProfile) {
+    return res.status(400).json({ error: "Resume required" });
+  }
 
   const { data: form, error } = await supabase
     .from("Forms")
@@ -689,92 +706,11 @@ app.post("/public/forms/:shareToken/responses", async (req, res) => {
     .single();
 
   if (insErr) return res.status(500).json({ error: insErr.message });
-
   return res.json({ response: saved });
-});
-
-app.post("/responses/:responseId/summarize", async (req, res) => {
-  try {
-    const { responseId } = req.params;
-
-    const user = await getUserFromRequest(req);
-    if (!user) return res.status(401).json({ error: "Not logged in" });
-
-    const { data: resp, error: respErr } = await supabase
-      .from("Responses")
-      .select("id, formid, answers, resumeProfile")
-      .eq("id", responseId)
-      .single();
-
-    if (respErr || !resp) return res.status(404).json({ error: "Response not found" });
-
-    const { data: form, error: formErr } = await supabase
-      .from("Forms")
-      .select("name, summary")
-      .eq("ID", resp.formid)
-      .single();
-
-    const system = `
-You summarize job candidates for a recruiter.
-Return STRICT JSON only with this schema:
-{
-  "candidate_name": string,
-  "one_liner": string,
-  "strengths": string[],
-  "risks": string[],
-  "recommended_next_step": string
-}
-No scoring. Keep it concise. No extra keys.
-`.trim();
-
-    const answers = resp.answers || [];
-    const resumeProfile = resp.resumeProfile || null;
-
-    const nameGuess =
-      answers.find((qa) => (qa?.question || "").toLowerCase().includes("name"))
-        ?.answer?.trim() || "Candidate";
-
-    const userPrompt = `
-Form: ${form?.name || ""}
-Role context: ${form?.summary || ""}
-
-Candidate name: ${nameGuess}
-
-Resume profile (parsed):
-${JSON.stringify(resumeProfile, null, 2)}
-
-Answers:
-${JSON.stringify(answers, null, 2)}
-`.trim();
-
-let summaryObj = await generateCandidateSummaryJSON({
-  formName: form?.name,
-  formSummary: form?.summary,
-  answers: resp.answers,
-  resumeProfile: resp.resumeProfile,
-});
-
-    if (typeof summaryObj === "string") summaryObj = JSON.parse(summaryObj);
-
-    const { error: saveErr } = await supabase
-      .from("Responses")
-      .update({ summary: summaryObj })
-      .eq("id", responseId);
-
-    if (saveErr) return res.status(500).json({ error: saveErr.message });
-
-    return res.json({ summary: summaryObj });
-  } catch (e) {
-    console.log(e);
-    return res.status(500).json({ error: "Failed to summarize" });
-  }
 });
 
 // =============================
 // START SERVER
 // =============================
 const PORT = process.env.PORT || 5001;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
