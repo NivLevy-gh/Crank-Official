@@ -406,16 +406,6 @@ export default function FormPage() {
                     <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
                       AI: {aiEnabled ? "On" : "Off"}
                     </span>
-                    {aiEnabled && (
-                      <>
-                        <span className="rounded-full bg-[rgb(251,236,221)] px-3 py-1 text-xs font-medium text-[rgb(166,96,43)]">
-                          Used: {aiUsed}/{maxAiQuestions}
-                        </span>
-                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                          Left: {aiLeft}
-                        </span>
-                      </>
-                    )}
                   </div>
                 </div>
 
@@ -659,9 +649,7 @@ export default function FormPage() {
                       <span className="rounded-lg bg-white/70 px-2.5 py-1 text-xs font-semibold text-[rgb(166,96,43)]">
                         AI follow-up
                       </span>
-                      <span className="text-xs font-semibold text-[rgb(166,96,43)]">
-                        {aiLeft} left
-                      </span>
+                      
                     </div>
 
                     <div className="mt-3 text-sm font-semibold text-neutral-900">
