@@ -443,51 +443,74 @@ app.get("/public/forms/:shareToken", async (req, res) => {
 // =============================
 // UPDATE FORM (EDIT MODE)
 // =============================
+// =============================
+// UPDATE FORM (EDIT MODE)  ✅ FULL PATCH
+// =============================
 app.patch("/forms/:id", async (req, res) => {
   try {
     const user = await getUserFromRequest(req);
-    if (!user) {
-      return res.status(401).json({ error: "Not logged in" });
-    }
+    if (!user) return res.status(401).json({ error: "Not logged in" });
 
     const { id } = req.params;
-    const { name, summary, baseQuestions } = req.body;
 
-    // Basic validation
-    if (!name || !Array.isArray(baseQuestions)) {
-      return res.status(400).json({ error: "Invalid payload" });
-    }
+    // note: "public" is a reserved-ish word in JS, so we alias it to isPublic
+    const {
+      name,
+      summary,
+      baseQuestions,
+      public: isPublic,
+      aiEnabled,
+      maxAiQuestions,
+      archived,
+    } = req.body;
 
-    // Make sure the form belongs to the user
+    // 1) Make sure the form belongs to this user
     const { data: form, error: findErr } = await supabase
       .from("Forms")
       .select("ID, user_id")
       .eq("ID", id)
       .single();
 
-    if (findErr || !form) {
-      return res.status(404).json({ error: "Form not found" });
+    if (findErr || !form) return res.status(404).json({ error: "Form not found" });
+    if (form.user_id !== user.id) return res.status(403).json({ error: "Forbidden" });
+
+    // 2) Build a safe update payload (ONLY update what you send)
+    const update = {};
+
+    if (typeof name === "string") update.name = name;
+    if (typeof summary === "string") update.summary = summary;
+    if (Array.isArray(baseQuestions)) update.baseQuestions = baseQuestions;
+
+    if (typeof isPublic === "boolean") update.public = isPublic;
+
+    if (typeof aiEnabled === "boolean") update.aiEnabled = aiEnabled;
+
+    if (maxAiQuestions !== undefined) {
+      const n = Number(maxAiQuestions);
+      if (!Number.isFinite(n) || n < 0 || n > 20) {
+        return res.status(400).json({ error: "maxAiQuestions must be a number between 0 and 20" });
+      }
+      update.maxAiQuestions = n;
     }
 
-    if (form.user_id !== user.id) {
-      return res.status(403).json({ error: "Forbidden" });
+    if (typeof archived === "boolean") update.archived = archived;
+
+    // If they didn't send anything valid, don't run a blank update
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ error: "No valid fields to update" });
     }
 
-    // Update only editable fields
+    // 3) Persist
     const { data: updated, error: updateErr } = await supabase
       .from("Forms")
-      .update({
-        name,
-        summary,
-        baseQuestions,
-      })
+      .update(update)
       .eq("ID", id)
-      .select()
+      .select(
+        "ID, name, summary, baseQuestions, share_token, public, aiEnabled, maxAiQuestions, created_at, archived"
+      )
       .single();
 
-    if (updateErr) {
-      return res.status(500).json({ error: updateErr.message });
-    }
+    if (updateErr) return res.status(500).json({ error: updateErr.message });
 
     return res.json({ form: updated });
   } catch (err) {
