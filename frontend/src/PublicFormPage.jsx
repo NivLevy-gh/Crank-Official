@@ -129,21 +129,38 @@ export default function PublicFormPage() {
   };
 
   const handlePrimary = async () => {
-    if (shouldSubmit) return sendAnswers();
-
+    // Submit
+    if (shouldSubmit) {
+      return sendAnswers();
+    }
+  
+    // If answering an AI question
     if (aiQuestion) {
-      if (!aiAnswer.trim()) return alert("Answer the AI question first");
-
-      const newHistoryItem = { question: aiQuestion, answer: aiAnswer.trim() };
-      setHistory((prev) => [...prev, newHistoryItem]);
+      if (!aiAnswer.trim()) return;
+  
+      const newItem = {
+        question: aiQuestion,
+        answer: aiAnswer.trim(),
+      };
+  
+      // 1️⃣ Update history
+      setHistory((prev) => [...prev, newItem]);
+  
+      // 2️⃣ Clear current AI question FIRST
       setAiQuestion("");
       setAiAnswer("");
-
-      if (aiUsed + 1 >= maxAiQuestions) return;
-      await getNextAiQuestion();
+  
+      // 3️⃣ Let React finish state update, THEN ask next question
+      setTimeout(() => {
+        if (aiUsed + 1 < maxAiQuestions) {
+          getNextAiQuestion();
+        }
+      }, 0);
+  
       return;
     }
-
+  
+    // Ask first AI question
     await getNextAiQuestion();
   };
 
