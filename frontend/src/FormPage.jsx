@@ -94,8 +94,9 @@ export default function FormPage() {
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      notify("success", "Copied", "Share link copied.");
+      notify("success", "Copied", "Share link copied to clipboard.");
     } catch {
+      // fallback
       try {
         const el = document.createElement("textarea");
         el.value = text;
@@ -103,9 +104,9 @@ export default function FormPage() {
         el.select();
         document.execCommand("copy");
         document.body.removeChild(el);
-        notify("success", "Copied", "Share link copied.");
+        notify("success", "Copied", "Share link copied to clipboard.");
       } catch {
-        notify("error", "Copy failed", "Please copy manually.");
+        notify("error", "Copy failed", "Please copy the link manually.");
       }
     }
   };
@@ -122,9 +123,12 @@ export default function FormPage() {
         const { data: sessionData, error: sessionErr } =
           await supabase.auth.getSession();
 
-        if (sessionErr) console.error(sessionErr);
+        if (sessionErr) {
+          console.error(sessionErr);
+        }
 
         const token = sessionData.session?.access_token;
+
         if (!token) {
           setLoadErr("Not logged in.");
           setLoading(false);
@@ -177,7 +181,6 @@ export default function FormPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-
       if (!token) {
         notify("error", "Not logged in", "Please log in again.");
         return;
@@ -226,7 +229,6 @@ export default function FormPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-
       if (!token) {
         notify("error", "Not logged in", "Please log in again.");
         return;
@@ -237,14 +239,17 @@ export default function FormPage() {
       // optimistic
       setCrank((prev) => ({ ...prev, public: nextPublic }));
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${crank.ID}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ public: nextPublic }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/forms/${crank.ID}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ public: nextPublic }),
+        }
+      );
 
       if (!res.ok) {
         setCrank((prev) => ({ ...prev, public: !nextPublic }));
@@ -316,30 +321,32 @@ export default function FormPage() {
   };
 
   // -------------------------
-  // AI next question (OWNER)
+  // AI next question
   // -------------------------
   const fetchNextAiQuestion = async (combinedHistory) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-
     if (!token) {
       notify("error", "Not logged in", "Please log in again.");
       return null;
     }
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        history: combinedHistory,
-        baseQuestions: crank.baseQuestions,
-        summary: crank.summary,
-        resumeProfile,
-      }),
-    });
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          history: combinedHistory,
+          baseQuestions: crank.baseQuestions,
+          summary: crank.summary,
+          resumeProfile,
+        }),
+      }
+    );
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -377,14 +384,17 @@ export default function FormPage() {
         return;
       }
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/responses`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ answers: fullHistory, resumeProfile }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/forms/${id}/responses`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ answers: fullHistory, resumeProfile }),
+        }
+      );
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -411,19 +421,16 @@ export default function FormPage() {
       return;
     }
 
-    // If we're done with follow-ups, submit
     if (shouldSubmit) {
       await sendAnswers();
       return;
     }
 
-    // Base answers snapshot
     const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
       question: q,
       answer: (answers[i] || "").trim(),
     }));
 
-    // If an AI question is showing, store it then fetch next
     if (aiQuestion) {
       const trimmed = (aiAnswer || "").trim();
       if (!trimmed) {
@@ -449,7 +456,6 @@ export default function FormPage() {
       return;
     }
 
-    // No AI question yet: fetch first/next
     const combinedHistory = [...baseHistory, ...history];
     const nextQ = await fetchNextAiQuestion(combinedHistory);
     if (nextQ) setAiQuestion(nextQ);
@@ -528,12 +534,11 @@ export default function FormPage() {
                     </div>
                   )}
 
-                  {/* Badges */}
+                  {/* Badges incl follow-ups */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
                       {crank.public ? "Public" : "Private"}
                     </span>
-
                     <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
                       AI: {aiEnabled ? "On" : "Off"}
                     </span>
@@ -564,24 +569,21 @@ export default function FormPage() {
                     {crank.public ? "Make Private" : "Make Public"}
                   </button>
 
-                  {/* Share link button (no URL shown) */}
+                  {/* ✅ ONLY CHANGE #2: little share button, no URL shown */}
                   <button
                     type="button"
                     onClick={() => {
                       if (!crank.public) {
-                        notify("error", "Not public", "Make the form public to share.");
+                        notify("error", "Make it public", "Switch to Public to share.");
                         return;
                       }
                       if (!publicUrl) {
-                        notify("error", "No link", "This form has no share link yet.");
+                        notify("error", "No share link", "Missing share token.");
                         return;
                       }
                       copyToClipboard(publicUrl);
                     }}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold
-                               border border-neutral-200 bg-white
-                               hover:bg-[rgb(251,236,221)]
-                               text-neutral-800 transition"
+                    className="h-10 rounded-xl px-4 text-sm font-semibold bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border border-[rgb(242,200,168)] hover:bg-[rgb(247,225,205)] transition"
                   >
                     Share link
                   </button>
@@ -620,6 +622,8 @@ export default function FormPage() {
                   )}
                 </div>
               </div>
+
+              {/* ✅ ONLY CHANGE #2: removed the old "Share link field" box entirely */}
             </div>
           </div>
 
@@ -694,9 +698,7 @@ export default function FormPage() {
                     className="rounded-3xl border border-neutral-200 bg-white shadow-sm"
                   >
                     <div className="p-6">
-                      <div className="text-sm font-semibold text-neutral-900">
-                        {q}
-                      </div>
+                      <div className="text-sm font-semibold text-neutral-900">{q}</div>
                       <textarea
                         className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                         rows={4}
@@ -738,9 +740,7 @@ export default function FormPage() {
                             value={q}
                             onChange={(e) =>
                               setEditQuestions((prev) =>
-                                prev.map((x, i) =>
-                                  i === idx ? e.target.value : x
-                                )
+                                prev.map((x, i) => (i === idx ? e.target.value : x))
                               )
                             }
                             className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
@@ -750,9 +750,7 @@ export default function FormPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              setEditQuestions((prev) =>
-                                prev.filter((_, i) => i !== idx)
-                              )
+                              setEditQuestions((prev) => prev.filter((_, i) => i !== idx))
                             }
                             className="h-10 rounded-xl px-3 text-sm font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 transition"
                           >
@@ -767,7 +765,7 @@ export default function FormPage() {
 
               {/* AI follow-up */}
               {aiEnabled && aiQuestion && (
-                <div className="rounded-2xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
+                <div className="rounded-3xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
                   <div className="p-6">
                     <div className="flex items-center justify-between">
                       <span className="rounded-lg bg-white/70 px-2.5 py-1 text-xs font-semibold text-[rgb(166,96,43)]">
@@ -784,7 +782,7 @@ export default function FormPage() {
                     </div>
 
                     <textarea
-                      className="mt-3 w-full rounded-2xl border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                      className="mt-3 w-full rounded-2xl border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(222,150,90)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                       rows={4}
                       placeholder="Your answer"
                       value={aiAnswer}
@@ -815,8 +813,7 @@ export default function FormPage() {
 
               {aiEnabled && !aiQuestion && aiLeft > 0 && (
                 <div className="text-xs text-neutral-500 px-1">
-                  Click <span className="font-semibold">Start follow-ups</span> to
-                  generate an AI question.
+                  Click <span className="font-semibold">Start follow-ups</span> to generate an AI question.
                 </div>
               )}
             </div>
