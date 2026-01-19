@@ -53,8 +53,6 @@ export default function Signup() {
 
           {/* Card */}
           <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-            <div className="h-1.5 bg-[rgb(242,200,168)]" />
-
             <div className="p-6 sm:p-7">
               <h1 className="text-xl font-semibold tracking-tight text-neutral-900">
                 Create an account
