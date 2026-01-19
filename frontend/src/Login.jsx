@@ -43,21 +43,21 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       {/* subtle top gradient */}
-      <div className="h-36 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
+      <div className="h-40 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
 
-      <div className="-mt-16 flex items-center justify-center px-6 pb-16">
+      <div className="-mt-20 flex items-center justify-center px-6 pb-16">
         <div className="w-full max-w-sm">
           {/* Logo */}
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center mb-6">
             <img src={logo} alt="logo" className="h-10 w-auto" />
           </div>
 
           {/* Card */}
           <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
-
-            <div className="p-6">
-              <h1 className="text-xl font-semibold text-neutral-900">Sign in</h1>
-              <p className="text-xs text-neutral-500 mt-1 mb-5">
+            <div className="p-6 sm:p-7">
+              <h1 className="text-xl font-semibold tracking-tight text-neutral-900">
+                Sign in</h1>
+                <p className="text-sm text-neutral-500 mt-1 mb-6">
                 Enter your credentials
               </p>
 
@@ -120,7 +120,7 @@ export default function Login() {
               </button>
 
               {/* Footer */}
-              <p className="mt-5 text-center text-[11px] text-neutral-500">
+              <p className="mt-6 text-center text-xs text-neutral-500">
                 Don’t have an account?{" "}
                 <span
                   onClick={() => navigate("/")}
