@@ -1,3 +1,4 @@
+
 // FormPage.jsx
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -94,9 +95,8 @@ export default function FormPage() {
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      notify("success", "Copied", "Share link copied to clipboard.");
+      notify("success", "Copied", "Share link copied.");
     } catch {
-      // fallback
       try {
         const el = document.createElement("textarea");
         el.value = text;
@@ -104,9 +104,9 @@ export default function FormPage() {
         el.select();
         document.execCommand("copy");
         document.body.removeChild(el);
-        notify("success", "Copied", "Share link copied to clipboard.");
+        notify("success", "Copied", "Share link copied.");
       } catch {
-        notify("error", "Copy failed", "Please copy the link manually.");
+        notify("error", "Copy failed", "Please copy manually.");
       }
     }
   };
@@ -123,12 +123,9 @@ export default function FormPage() {
         const { data: sessionData, error: sessionErr } =
           await supabase.auth.getSession();
 
-        if (sessionErr) {
-          console.error(sessionErr);
-        }
+        if (sessionErr) console.error(sessionErr);
 
         const token = sessionData.session?.access_token;
-
         if (!token) {
           setLoadErr("Not logged in.");
           setLoading(false);
@@ -181,6 +178,7 @@ export default function FormPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
+
       if (!token) {
         notify("error", "Not logged in", "Please log in again.");
         return;
@@ -229,6 +227,7 @@ export default function FormPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
+
       if (!token) {
         notify("error", "Not logged in", "Please log in again.");
         return;
@@ -239,17 +238,14 @@ export default function FormPage() {
       // optimistic
       setCrank((prev) => ({ ...prev, public: nextPublic }));
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/forms/${crank.ID}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ public: nextPublic }),
-        }
-      );
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${crank.ID}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ public: nextPublic }),
+      });
 
       if (!res.ok) {
         setCrank((prev) => ({ ...prev, public: !nextPublic }));
@@ -321,32 +317,30 @@ export default function FormPage() {
   };
 
   // -------------------------
-  // AI next question
+  // AI next question (OWNER)
   // -------------------------
   const fetchNextAiQuestion = async (combinedHistory) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
+
     if (!token) {
       notify("error", "Not logged in", "Please log in again.");
       return null;
     }
 
-    const res = await fetch(
-      `${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          history: combinedHistory,
-          baseQuestions: crank.baseQuestions,
-          summary: crank.summary,
-          resumeProfile,
-        }),
-      }
-    );
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        history: combinedHistory,
+        baseQuestions: crank.baseQuestions,
+        summary: crank.summary,
+        resumeProfile,
+      }),
+    });
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -384,17 +378,14 @@ export default function FormPage() {
         return;
       }
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/forms/${id}/responses`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ answers: fullHistory, resumeProfile }),
-        }
-      );
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/responses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ answers: fullHistory, resumeProfile }),
+      });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -421,16 +412,19 @@ export default function FormPage() {
       return;
     }
 
+    // If we're done with follow-ups, submit
     if (shouldSubmit) {
       await sendAnswers();
       return;
     }
 
+    // Base answers snapshot
     const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
       question: q,
       answer: (answers[i] || "").trim(),
     }));
 
+    // If an AI question is showing, store it then fetch next
     if (aiQuestion) {
       const trimmed = (aiAnswer || "").trim();
       if (!trimmed) {
@@ -456,6 +450,7 @@ export default function FormPage() {
       return;
     }
 
+    // No AI question yet: fetch first/next
     const combinedHistory = [...baseHistory, ...history];
     const nextQ = await fetchNextAiQuestion(combinedHistory);
     if (nextQ) setAiQuestion(nextQ);
@@ -494,13 +489,13 @@ export default function FormPage() {
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* top gradient */}
-      <div className="h-36 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
+      {/* peachier top gradient */}
+      <div className="h-40 w-full bg-gradient-to-b from-[rgb(250,226,210)] via-[rgb(253,244,236)] to-[rgb(253,249,244)]" />
 
       <div className="-mt-16 pb-16">
         <div className="mx-auto w-full max-w-4xl px-4">
           {/* TOP OWNER CARD */}
-          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-3xl border border-[rgb(242,212,190)] bg-white shadow-[0_8px_30px_rgba(30,20,10,0.06)] overflow-hidden">
             <div className="h-1.5 bg-[rgb(242,200,168)]" />
 
             <div className="p-6 sm:p-7">
@@ -521,30 +516,31 @@ export default function FormPage() {
                       <input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                        className="w-full rounded-2xl border border-[rgb(242,212,190)] bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                         placeholder="Form title"
                       />
                       <textarea
                         value={editSummary}
                         onChange={(e) => setEditSummary(e.target.value)}
-                        className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                        className="w-full rounded-2xl border border-[rgb(242,212,190)] bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                         rows={3}
                         placeholder="Form description"
                       />
                     </div>
                   )}
 
-                  {/* Badges incl follow-ups */}
+                  {/* Badges */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                    <span className="rounded-full bg-[rgb(253,244,236)] px-3 py-1 text-xs font-medium text-neutral-700 border border-[rgb(242,212,190)]">
                       {crank.public ? "Public" : "Private"}
                     </span>
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+
+                    <span className="rounded-full bg-[rgb(253,244,236)] px-3 py-1 text-xs font-medium text-neutral-700 border border-[rgb(242,212,190)]">
                       AI: {aiEnabled ? "On" : "Off"}
                     </span>
 
                     {aiEnabled && (
-                      <div className="rounded-full bg-[rgb(251,236,221)] px-3 py-1 text-xs font-medium text-[rgb(166,96,43)]">
+                      <div className="rounded-full bg-[rgb(251,236,221)] px-3 py-1 text-xs font-medium text-[rgb(166,96,43)] border border-[rgb(242,200,168)]">
                         Follow-ups: {aiUsed}/{maxAiQuestions}
                       </div>
                     )}
@@ -556,7 +552,7 @@ export default function FormPage() {
                   <button
                     type="button"
                     onClick={() => navigate(`/form/${id}/results`)}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-[rgb(242,212,190)] bg-white text-neutral-800 hover:bg-[rgb(253,244,236)] transition"
                   >
                     Responses
                   </button>
@@ -564,26 +560,29 @@ export default function FormPage() {
                   <button
                     type="button"
                     onClick={togglePublic}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-[rgb(242,212,190)] bg-white text-neutral-800 hover:bg-[rgb(253,244,236)] transition"
                   >
                     {crank.public ? "Make Private" : "Make Public"}
                   </button>
 
-                  {/* ✅ ONLY CHANGE #2: little share button, no URL shown */}
+                  {/* Share link button (no URL shown) */}
                   <button
                     type="button"
                     onClick={() => {
                       if (!crank.public) {
-                        notify("error", "Make it public", "Switch to Public to share.");
+                        notify("error", "Not public", "Make the form public to share.");
                         return;
                       }
                       if (!publicUrl) {
-                        notify("error", "No share link", "Missing share token.");
+                        notify("error", "No link", "This form has no share link yet.");
                         return;
                       }
                       copyToClipboard(publicUrl);
                     }}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border border-[rgb(242,200,168)] hover:bg-[rgb(247,225,205)] transition"
+                    className="h-10 rounded-xl px-4 text-sm font-semibold
+                               bg-[rgb(251,236,221)] text-[rgb(166,96,43)]
+                               border border-[rgb(242,200,168)]
+                               hover:bg-[rgb(247,225,205)] transition"
                   >
                     Share link
                   </button>
@@ -606,7 +605,7 @@ export default function FormPage() {
                           setEditSummary(crank?.summary || "");
                           setEditQuestions(crank?.baseQuestions || []);
                         }}
-                        className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                        className="h-10 rounded-xl px-4 text-sm font-semibold border border-[rgb(242,212,190)] bg-white text-neutral-800 hover:bg-[rgb(253,244,236)] transition"
                       >
                         Cancel
                       </button>
@@ -622,8 +621,6 @@ export default function FormPage() {
                   )}
                 </div>
               </div>
-
-              {/* ✅ ONLY CHANGE #2: removed the old "Share link field" box entirely */}
             </div>
           </div>
 
@@ -631,7 +628,7 @@ export default function FormPage() {
           <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
             {/* Resume (required) */}
             <div className="lg:col-span-1">
-              <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
+              <div className="rounded-3xl border border-[rgb(242,212,190)] bg-white shadow-[0_8px_30px_rgba(30,20,10,0.06)]">
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -654,7 +651,7 @@ export default function FormPage() {
                     )}
                   </div>
 
-                  <label className="mt-4 flex cursor-pointer items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm transition hover:border-[rgb(242,200,168)] hover:bg-[rgb(251,236,221)]">
+                  <label className="mt-4 flex cursor-pointer items-center justify-between rounded-2xl border border-[rgb(242,212,190)] bg-[rgb(253,244,236)] px-4 py-3 text-sm transition hover:border-[rgb(242,200,168)] hover:bg-[rgb(251,236,221)]">
                     <span className="font-medium text-neutral-800">
                       {resumeUploading ? "Processing…" : "Upload PDF"}
                     </span>
@@ -695,12 +692,14 @@ export default function FormPage() {
                 questions.map((q, i) => (
                   <div
                     key={i}
-                    className="rounded-3xl border border-neutral-200 bg-white shadow-sm"
+                    className="rounded-3xl border border-[rgb(242,212,190)] bg-white shadow-[0_8px_30px_rgba(30,20,10,0.06)]"
                   >
                     <div className="p-6">
-                      <div className="text-sm font-semibold text-neutral-900">{q}</div>
+                      <div className="text-sm font-semibold text-neutral-900">
+                        {q}
+                      </div>
                       <textarea
-                        className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                        className="mt-3 w-full rounded-2xl border border-[rgb(242,212,190)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                         rows={4}
                         placeholder="Your answer"
                         value={answers[i] || ""}
@@ -712,7 +711,7 @@ export default function FormPage() {
                   </div>
                 ))
               ) : (
-                <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
+                <div className="rounded-3xl border border-[rgb(242,212,190)] bg-white shadow-[0_8px_30px_rgba(30,20,10,0.06)]">
                   <div className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -740,19 +739,23 @@ export default function FormPage() {
                             value={q}
                             onChange={(e) =>
                               setEditQuestions((prev) =>
-                                prev.map((x, i) => (i === idx ? e.target.value : x))
+                                prev.map((x, i) =>
+                                  i === idx ? e.target.value : x
+                                )
                               )
                             }
-                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                            className="h-10 w-full rounded-xl border border-[rgb(242,212,190)] bg-white px-3 text-sm outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                             placeholder={`Question ${idx + 1}`}
                           />
 
                           <button
                             type="button"
                             onClick={() =>
-                              setEditQuestions((prev) => prev.filter((_, i) => i !== idx))
+                              setEditQuestions((prev) =>
+                                prev.filter((_, i) => i !== idx)
+                              )
                             }
-                            className="h-10 rounded-xl px-3 text-sm font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 transition"
+                            className="h-10 rounded-xl px-3 text-sm font-semibold border border-[rgb(242,212,190)] bg-white hover:bg-[rgb(253,244,236)] transition"
                           >
                             ✕
                           </button>
@@ -765,7 +768,7 @@ export default function FormPage() {
 
               {/* AI follow-up */}
               {aiEnabled && aiQuestion && (
-                <div className="rounded-3xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
+                <div className="rounded-2xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-[0_8px_30px_rgba(30,20,10,0.06)]">
                   <div className="p-6">
                     <div className="flex items-center justify-between">
                       <span className="rounded-lg bg-white/70 px-2.5 py-1 text-xs font-semibold text-[rgb(166,96,43)]">
@@ -782,7 +785,7 @@ export default function FormPage() {
                     </div>
 
                     <textarea
-                      className="mt-3 w-full rounded-2xl border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(222,150,90)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                      className="mt-3 w-full rounded-2xl border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                       rows={4}
                       placeholder="Your answer"
                       value={aiAnswer}
@@ -797,7 +800,7 @@ export default function FormPage() {
                 <button
                   type="button"
                   onClick={() => navigate("/dashboard")}
-                  className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                  className="h-10 rounded-xl px-4 text-sm font-semibold border border-[rgb(242,212,190)] bg-white text-neutral-800 hover:bg-[rgb(253,244,236)] transition"
                 >
                   Exit
                 </button>
@@ -813,7 +816,8 @@ export default function FormPage() {
 
               {aiEnabled && !aiQuestion && aiLeft > 0 && (
                 <div className="text-xs text-neutral-500 px-1">
-                  Click <span className="font-semibold">Start follow-ups</span> to generate an AI question.
+                  Click <span className="font-semibold">Start follow-ups</span> to
+                  generate an AI question.
                 </div>
               )}
             </div>
@@ -823,3 +827,4 @@ export default function FormPage() {
     </div>
   );
 }
+
