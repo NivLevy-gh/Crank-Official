@@ -498,8 +498,32 @@ export default function FormPage() {
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
+          
+      <div className="flex h-14 items-center justify-between">
+  <div className="flex items-center gap-3">
+    <button
+      type="button"
+      onClick={() => navigate("/dashboard")}
+      className="rounded-lg px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
+    >
+      ← Dashboard
+    </button>
+
+    <div className="h-6 w-px bg-neutral-200" />
+
+    <div className="min-w-0">
+      <div className="truncate text-sm font-semibold text-neutral-900">
+        {crank?.name}
+      </div>
+      <div className="truncate text-xs text-neutral-500">
+        {crank?.public ? "Public link enabled" : "Private form"}
+      </div>
+    </div>
+  </div>
+</div>
+
       {/* top gradient */}
-      <div className="h-36 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
+      <div className="h-36 w-full bg-orange-100" />
 
       <div className="-mt-16 pb-16">
         <div className="mx-auto w-full max-w-4xl px-4">
