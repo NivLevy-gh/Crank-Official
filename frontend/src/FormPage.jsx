@@ -18,7 +18,6 @@ function Toast({ toast, onClose }) {
 
   return (
     <div className="fixed left-1/2 top-4 z-[9999] w-[92%] max-w-md -translate-x-1/2">
-
       <div className={`rounded-2xl border px-4 py-3 shadow-lg ${styles}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm font-semibold">{toast.title || "Notice"}</div>
@@ -36,6 +35,27 @@ function Toast({ toast, onClose }) {
         )}
       </div>
     </div>
+  );
+}
+
+function Pill({ children, tone = "neutral" }) {
+  const base =
+    "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border whitespace-nowrap";
+
+  const tones = {
+    neutral: "bg-neutral-50 text-neutral-700 border-neutral-200",
+    green: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    red: "bg-red-50 text-red-800 border-red-200",
+
+    // peach theme (your brand)
+    peach:
+      "bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border-[rgb(242,200,168)]",
+  };
+
+  return (
+    <span className={`${base} ${tones[tone] || tones.neutral}`}>
+      {children}
+    </span>
   );
 }
 
@@ -97,7 +117,6 @@ export default function FormPage() {
       await navigator.clipboard.writeText(text);
       notify("success", "Copied", "Share link copied to clipboard.");
     } catch {
-      // fallback
       try {
         const el = document.createElement("textarea");
         el.value = text;
@@ -221,6 +240,13 @@ export default function FormPage() {
     }
   };
 
+  const cancelEdits = () => {
+    setEditMode(false);
+    setEditName(crank?.name || "");
+    setEditSummary(crank?.summary || "");
+    setEditQuestions(crank?.baseQuestions || []);
+  };
+
   // -------------------------
   // Toggle public/private
   // -------------------------
@@ -295,11 +321,14 @@ export default function FormPage() {
       const formData = new FormData();
       formData.append("resume", file);
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/resume`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/forms/${id}/resume`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        }
+      );
 
       const data = await res.json().catch(() => ({}));
       setResumeUploading(false);
@@ -328,11 +357,12 @@ export default function FormPage() {
       notify("error", "Not logged in", "Please log in again.");
       return null;
     }
+
     const res = await fetch(`${import.meta.env.VITE_API_URL}/forms/${id}/ai-next`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`, // ✅ REQUIRED
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         history: combinedHistory,
@@ -341,15 +371,15 @@ export default function FormPage() {
         resumeProfile,
       }),
     });
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       notify("error", "AI failed", data?.error || "AI request failed.");
       return null;
     }
+
     return (data.nextQuestion || "").trim();
   };
-  
-  
 
   // -------------------------
   // Submit answers
@@ -403,10 +433,6 @@ export default function FormPage() {
 
   // -------------------------
   // ONE button handler
-  // - No more "Answer current AI question first" blocking alert.
-  // - If there's an AI question showing, Continue stores it + fetches next (if any left).
-  // - If no AI question showing and follow-ups remain, Continue fetches first AI question.
-  // - When aiLeft hits 0, button becomes Submit.
   // -------------------------
   const handlePrimary = async () => {
     if (!crank) return;
@@ -416,19 +442,16 @@ export default function FormPage() {
       return;
     }
 
-    // If we're done with follow-ups, submit
     if (shouldSubmit) {
       await sendAnswers();
       return;
     }
 
-    // Build baseHistory snapshot
     const baseHistory = (crank.baseQuestions || []).map((q, i) => ({
       question: q,
       answer: (answers[i] || "").trim(),
     }));
 
-    // If an AI question is currently displayed, we store the answer (even if blank, but we nudge).
     if (aiQuestion) {
       const trimmed = (aiAnswer || "").trim();
       if (!trimmed) {
@@ -437,29 +460,23 @@ export default function FormPage() {
       }
 
       const newHistoryItem = { question: aiQuestion, answer: trimmed };
-
-      // IMPORTANT: compute next state locally so we don't depend on async setState timing
       const nextHistory = [...history, newHistoryItem];
       const combinedHistory = [...baseHistory, ...nextHistory];
 
-      // Clear UI immediately
       setHistory(nextHistory);
       setAiQuestion("");
       setAiAnswer("");
 
-      // If that was the last follow-up slot, we stop here; next click will Submit.
       if (nextHistory.length >= maxAiQuestions) {
         notify("success", "Saved", "AI follow-up saved. You can submit now.");
         return;
       }
 
-      // Otherwise fetch the next AI question
       const nextQ = await fetchNextAiQuestion(combinedHistory);
       if (nextQ) setAiQuestion(nextQ);
       return;
     }
 
-    // No AI question currently showing: fetch the first/next follow-up
     const combinedHistory = [...baseHistory, ...history];
     const nextQ = await fetchNextAiQuestion(combinedHistory);
     if (nextQ) setAiQuestion(nextQ);
@@ -494,36 +511,16 @@ export default function FormPage() {
     );
   }
 
-
-  function Pill({ children, tone = "neutral" }) {
-    const base =
-      "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border whitespace-nowrap";
-  
-    const tones = {
-      neutral: "bg-neutral-50 text-neutral-700 border-neutral-200",
-      green: "bg-emerald-50 text-emerald-800 border-emerald-200",
-      red: "bg-red-50 text-red-800 border-red-200",
-  
-      // peach theme (your brand)
-      peach:
-        "bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border-[rgb(242,200,168)]",
-    };
-  
-    return (
-      <span className={`${base} ${tones[tone] || tones.neutral}`}>
-        {children}
-      </span>
-    );
-  }
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-          {/* Top bar (Stripe/Notion-ish) */}
-          <div className="sticky top-0 z-40 border-b border-neutral-200 bg-white/80 backdrop-blur">
+      {/* TOP BAR — owner buttons live here */}
+      <div className="sticky top-0 z-40 border-b border-neutral-200 bg-white/80 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="flex h-14 items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex h-14 items-center justify-between gap-3">
+            {/* Left: back + title */}
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 type="button"
                 onClick={() => navigate("/dashboard")}
@@ -531,7 +528,9 @@ export default function FormPage() {
               >
                 ← Dashboard
               </button>
-              <div className="h-6 w-px bg-neutral-200" />
+
+              <div className="hidden sm:block h-6 w-px bg-neutral-200" />
+
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-neutral-900">
                   {crank.name}
@@ -542,140 +541,125 @@ export default function FormPage() {
               </div>
             </div>
 
+            {/* Right: pills + owner actions */}
             <div className="flex items-center gap-2">
-              <Pill tone={crank.public ? "green" : "neutral"}>
-                {crank.public ? "Public" : "Private"}
-              </Pill>
-             
+              <div className="hidden md:flex items-center gap-2">
+                <Pill tone={crank.public ? "green" : "neutral"}>
+                  {crank.public ? "Public" : "Private"}
+                </Pill>
+
+                <Pill tone={aiEnabled ? "peach" : "neutral"}>
+                  AI {aiEnabled ? "On" : "Off"}
+                </Pill>
+
+                {aiEnabled ? (
+                  <Pill tone="peach">
+                    Follow-ups {aiUsed}/{maxAiQuestions}
+                  </Pill>
+                ) : null}
+              </div>
+
+              <div className="hidden sm:block h-6 w-px bg-neutral-200 mx-1" />
+
+              {/* OWNER BUTTONS IN TOP BAR */}
+              <button
+                type="button"
+                onClick={() => navigate(`/form/${id}/results`)}
+                className="h-9 rounded-lg px-3 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+              >
+                Responses
+              </button>
+
+              <button
+                type="button"
+                onClick={togglePublic}
+                className="h-9 rounded-lg px-3 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+              >
+                {crank.public ? "Make private" : "Make public"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!publicUrl) {
+                    notify("error", "No link yet", "This form has no share link.");
+                    return;
+                  }
+                  copyToClipboard(publicUrl);
+                }}
+                className="h-9 rounded-lg px-3 text-sm font-semibold bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border border-[rgb(242,200,168)] hover:bg-[rgb(247,225,205)] transition"
+              >
+                Share
+              </button>
+
+              {!editMode ? (
+                <button
+                  type="button"
+                  onClick={() => setEditMode(true)}
+                  className="h-9 rounded-lg px-3 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition"
+                >
+                  Edit
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={cancelEdits}
+                    className="h-9 rounded-lg px-3 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={saveEdits}
+                    className="h-9 rounded-lg px-3 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition"
+                  >
+                    Save
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
-     
 
       {/* top gradient */}
       <div className="h-36 w-full bg-[#f7f5f1]" />
 
       <div className="-mt-16 pb-16">
         <div className="mx-auto w-full max-w-4xl px-4">
-          {/* TOP OWNER CARD (public/private, share, responses, edit, followups counter) */}
+          {/* CLEAN HEADER CARD (no buttons here now) */}
           <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="h-1.5 bg-[rgb(242,200,168)]" />
 
             <div className="p-6 sm:p-7">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                {/* Title/Summary or Edit */}
-                <div className="min-w-0 flex-1">
-                  {!editMode ? (
-                    <>
-                      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900">
-                        {crank.name}
-                      </h1>
-                      <p className="mt-2 text-sm sm:text-[15px] leading-relaxed text-neutral-600">
-                        {crank.summary}
-                      </p>
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
-                        placeholder="Form title"
-                      />
-                      <textarea
-                        value={editSummary}
-                        onChange={(e) => setEditSummary(e.target.value)}
-                        className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
-                        rows={3}
-                        placeholder="Form description"
-                      />
-                    </div>
-                  )}
-
-                  {/* Badges incl follow-ups */}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                   
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                      AI: {aiEnabled ? "On" : "Off"}
-                    </span>
-
-                    {aiEnabled && (
-                      <div className="rounded-full bg-[rgb(251,236,221)] px-3 py-1 text-xs font-medium text-[rgb(166,96,43)]">
-                        Follow-ups: {aiUsed}/{maxAiQuestions}
-                      </div>
-                    )}
-                  </div>
+              {!editMode ? (
+                <>
+                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-neutral-900">
+                    {crank.name}
+                  </h1>
+                  <p className="mt-2 text-sm sm:text-[15px] leading-relaxed text-neutral-600">
+                    {crank.summary}
+                  </p>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                    placeholder="Form title"
+                  />
+                  <textarea
+                    value={editSummary}
+                    onChange={(e) => setEditSummary(e.target.value)}
+                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                    rows={3}
+                    placeholder="Form description"
+                  />
                 </div>
-
-                {/* Owner actions */}
-                <div className="flex flex-wrap gap-2 sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/form/${id}/results`)}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
-                  >
-                    Responses
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={togglePublic}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
-                  >
-                    {crank.public ? "Make Private" : "Make Public"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!publicUrl) {
-                        notify("error", "No link yet", "This form has no share link.");
-                        return;
-                      }
-                      copyToClipboard(publicUrl);
-                    }}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border border-[rgb(242,200,168)] hover:bg-[rgb(247,225,205)] transition"
-                  >
-                    Copy share link
-                  </button>
-
-                  {!editMode ? (
-                    <button
-                      type="button"
-                      onClick={() => setEditMode(true)}
-                      className="h-10 rounded-xl px-4 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition"
-                    >
-                      Edit
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditMode(false);
-                          setEditName(crank?.name || "");
-                          setEditSummary(crank?.summary || "");
-                          setEditQuestions(crank?.baseQuestions || []);
-                        }}
-                        className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
-                      >
-                        Cancel
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={saveEdits}
-                        className="h-10 rounded-xl px-4 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition"
-                      >
-                        Save
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              
+              )}
             </div>
           </div>
 
@@ -727,7 +711,6 @@ export default function FormPage() {
                     />
                   </label>
 
-                  {/* follow-up counter in left column too (optional but useful) */}
                   {aiEnabled && (
                     <div className="mt-4 rounded-2xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] px-4 py-3">
                       <div className="text-xs font-semibold text-[rgb(166,96,43)]">
@@ -751,7 +734,9 @@ export default function FormPage() {
                     className="rounded-3xl border border-neutral-200 bg-white shadow-sm"
                   >
                     <div className="p-6">
-                      <div className="text-sm font-semibold text-neutral-900">{q}</div>
+                      <div className="text-sm font-semibold text-neutral-900">
+                        {q}
+                      </div>
                       <textarea
                         className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                         rows={4}
