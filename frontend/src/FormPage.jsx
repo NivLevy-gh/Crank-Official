@@ -495,17 +495,26 @@ export default function FormPage() {
   }
 
 
-            <div className="flex items-center gap-2">
-              <Pill tone={crank.public ? "green" : "neutral"}>
-                {crank.public ? "Public" : "Private"}
-              </Pill>
-              <Pill tone={aiEnabled ? "blue" : "neutral"}>AI {aiEnabled ? "On" : "Off"}</Pill>
-              {aiEnabled ? (
-                <Pill tone="amber">
-                  Follow-ups {aiUsed}/{maxAiQuestions}
-                </Pill>
-              ) : null}
-            </div>
+  function Pill({ children, tone = "neutral" }) {
+    const base =
+      "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border whitespace-nowrap";
+  
+    const tones = {
+      neutral: "bg-neutral-50 text-neutral-700 border-neutral-200",
+      green: "bg-emerald-50 text-emerald-800 border-emerald-200",
+      red: "bg-red-50 text-red-800 border-red-200",
+  
+      // peach theme (your brand)
+      peach:
+        "bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border-[rgb(242,200,168)]",
+    };
+  
+    return (
+      <span className={`${base} ${tones[tone] || tones.neutral}`}>
+        {children}
+      </span>
+    );
+  }
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       <Toast toast={toast} onClose={() => setToast(null)} />
