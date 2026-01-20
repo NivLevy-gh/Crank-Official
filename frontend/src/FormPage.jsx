@@ -546,12 +546,7 @@ export default function FormPage() {
               <Pill tone={crank.public ? "green" : "neutral"}>
                 {crank.public ? "Public" : "Private"}
               </Pill>
-              <Pill tone={aiEnabled ? "blue" : "neutral"}>AI {aiEnabled ? "On" : "Off"}</Pill>
-              {aiEnabled ? (
-                <Pill tone="amber">
-                  Follow-ups {aiUsed}/{maxAiQuestions}
-                </Pill>
-              ) : null}
+             
             </div>
           </div>
         </div>
@@ -600,9 +595,7 @@ export default function FormPage() {
 
                   {/* Badges incl follow-ups */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                      {crank.public ? "Public" : "Private"}
-                    </span>
+                   
                     <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
                       AI: {aiEnabled ? "On" : "Off"}
                     </span>
@@ -682,24 +675,7 @@ export default function FormPage() {
                 </div>
               </div>
 
-              {/* Share link field */}
-              <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-4">
-                <div className="text-xs font-medium text-neutral-500">Share link</div>
-                <div className="mt-2 flex items-center gap-2">
-                  <input
-                    readOnly
-                    value={publicUrl || "No share link yet"}
-                    className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-800 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => publicUrl && copyToClipboard(publicUrl)}
-                    className="h-10 rounded-xl px-3 text-sm font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 transition"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
+              
             </div>
           </div>
 
