@@ -88,7 +88,7 @@ export default function ResponseDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center">
         <div className="text-sm text-neutral-600">Loading…</div>
       </div>
     );
@@ -96,7 +96,7 @@ export default function ResponseDetail() {
 
   if (err) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center px-6">
         <div className="text-sm text-red-600">{err}</div>
       </div>
     );
@@ -104,18 +104,18 @@ export default function ResponseDetail() {
 
   if (!response) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center">
         <div className="text-sm text-neutral-600">Response not found.</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[rgb(253,249,244)]">
+    <div className="min-h-screen bg-[#f7f5f1]">
       <Navbar />
 
       {/* subtle top gradient */}
-      <div className="h-28 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
+      <div className="h-28 w-full bg-[#f7f5f1]" />
 
       <div className="-mt-14 pb-16">
         <div className="mx-auto max-w-4xl px-4">
@@ -248,7 +248,7 @@ export default function ResponseDetail() {
                 {(response.answers || []).map((qa, i) => (
                   <div
                     key={i}
-                    className="rounded-lg border border-neutral-200 bg-[rgb(253,249,244)] p-4"
+                    className="rounded-lg border border-neutral-200 bg-[#f7f5f1] p-4"
                   >
                     <div className="text-xs font-medium text-neutral-600 mb-2">
                       Q{i + 1}: {qa.question}

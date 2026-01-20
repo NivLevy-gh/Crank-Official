@@ -487,7 +487,7 @@ export default function FormPage() {
   // -------------------------
   if (loading) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center">
         <div className="text-sm text-neutral-600">Loading…</div>
       </div>
     );
@@ -495,7 +495,7 @@ export default function FormPage() {
 
   if (loadErr) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center px-6">
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {loadErr}
         </div>
@@ -505,14 +505,14 @@ export default function FormPage() {
 
   if (!crank) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center">
         <div className="text-sm text-neutral-600">Form not found.</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[rgb(253,249,244)]">
+    <div className="min-h-screen bg-[#f7f5f1]">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
       {/* TOP BAR — owner buttons live here */}

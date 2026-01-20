@@ -145,7 +145,7 @@ export default function ResultsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center">
         <div className="text-sm text-neutral-600">Loading results…</div>
       </div>
     );
@@ -153,7 +153,7 @@ export default function ResultsPage() {
 
   if (err) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center px-6">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center px-6">
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {err}
         </div>
@@ -163,17 +163,17 @@ export default function ResultsPage() {
 
   if (!form) {
     return (
-      <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f5f1] flex items-center justify-center">
         <div className="text-sm text-neutral-600">Form not found.</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[rgb(253,249,244)]">
+    <div className="min-h-screen bg-[#f7f5f1]">
 
       {/* peach top gradient */}
-      <div className="h-28 w-full bg-gradient-to-b from-[rgb(250,232,217)] to-[rgb(253,249,244)]" />
+      <div className="h-28 w-full bg-[#f7f5f1]" />
 
       <div className="-mt-14 pb-16">
         <div className="mx-auto max-w-6xl px-4">
@@ -221,7 +221,7 @@ export default function ResultsPage() {
                       </div>
                     </div>
 
-                    <div className="h-9 w-9 shrink-0 rounded-lg border border-neutral-200 bg-[rgb(253,249,244)] flex items-center justify-center text-xs font-semibold text-neutral-700">
+                    <div className="h-9 w-9 shrink-0 rounded-lg border border-neutral-200 bg-[#f7f5f1] flex items-center justify-center text-xs font-semibold text-neutral-700">
                       {(r.candidateName || "C").slice(0, 1).toUpperCase()}
                     </div>
                   </div>
