@@ -494,6 +494,19 @@ export default function FormPage() {
     );
   }
 
+  div>
+
+            <div className="flex items-center gap-2">
+              <Pill tone={crank.public ? "green" : "neutral"}>
+                {crank.public ? "Public" : "Private"}
+              </Pill>
+              <Pill tone={aiEnabled ? "blue" : "neutral"}>AI {aiEnabled ? "On" : "Off"}</Pill>
+              {aiEnabled ? (
+                <Pill tone="amber">
+                  Follow-ups {aiUsed}/{maxAiQuestions}
+                </Pill>
+              ) : null}
+            </div>
   return (
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       <Toast toast={toast} onClose={() => setToast(null)} />
