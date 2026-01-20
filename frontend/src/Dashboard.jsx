@@ -96,7 +96,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-white/60 px-5 py-4 text-sm text-neutral-600">
+      <div className="rounded-lg border border-neutral-200 bg-white/60 px-5 py-4 text-sm text-neutral-600">
         Loading…
       </div>
     );
@@ -104,7 +104,7 @@ export default function Dashboard() {
 
   if (err) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+      <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
         {err}
       </div>
     );
@@ -130,7 +130,7 @@ export default function Dashboard() {
             placeholder="Search forms…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-neutral-200 bg-white/70 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-md border border-neutral-200 bg-white/70 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:ring-2 focus:ring-orange-100"
           />
         </div>
       </div>
@@ -143,11 +143,11 @@ export default function Dashboard() {
           return (
             <div
               key={form.ID}
-              className="group rounded-2xl border border-neutral-200 bg-white/70 px-4 py-3 transition hover:bg-white hover:shadow-sm"
+              className="group rounded-lg border border-neutral-200 bg-white/70 px-4 py-3 transition hover:bg-white hover:shadow-sm"
             >
               <div className="flex items-center gap-3">
                 {/* icon */}
-                <div className="h-9 w-9 shrink-0 rounded-xl bg-orange-100 border border-orange-100" />
+                <div className="h-9 w-9 shrink-0 rounded-md bg-orange-100 border border-orange-100" />
 
                 {/* main click area */}
                 <button
@@ -171,7 +171,7 @@ export default function Dashboard() {
                       setShareUrl(publicUrl);
                       setShareOpen(true);
                     }}
-                    className="h-9 rounded-xl px-3 text-xs font-semibold border border-neutral-200 bg-white/60 text-neutral-800 hover:bg-white transition focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    className="h-9 rounded-md px-3 text-xs font-semibold border border-neutral-200 bg-white/60 text-neutral-800 hover:bg-white transition focus:outline-none focus:ring-2 focus:ring-orange-100"
                   >
                     Share
                   </button>
@@ -179,7 +179,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => navigate(`/form/${form.ID}/results`)}
-                    className="h-9 rounded-xl px-3 text-xs font-semibold border border-neutral-200 bg-white/60 text-neutral-800 hover:bg-white transition focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    className="h-9 rounded-md px-3 text-xs font-semibold border border-neutral-200 bg-white/60 text-neutral-800 hover:bg-white transition focus:outline-none focus:ring-2 focus:ring-orange-100"
                   >
                     Results
                   </button>
@@ -187,7 +187,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => archiveForm(form.ID)}
-                    className="h-9 rounded-xl px-3 text-xs font-semibold border border-neutral-200 bg-white/60 text-neutral-800 hover:bg-white transition focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    className="h-9 rounded-md px-3 text-xs font-semibold border border-neutral-200 bg-white/60 text-neutral-800 hover:bg-white transition focus:outline-none focus:ring-2 focus:ring-orange-100"
                   >
                     Archive
                   </button>
@@ -196,7 +196,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => navigate(`/form/${form.ID}`)}
-                    className="h-9 rounded-xl px-3 text-xs font-semibold bg-orange-100 text-neutral-900 border border-orange-100 hover:bg-orange-200 transition active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    className="h-9 rounded-md px-3 text-xs font-semibold bg-orange-100 text-neutral-900 border border-orange-100 hover:bg-orange-200 transition active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-orange-100"
                   >
                     Open
                   </button>
@@ -207,7 +207,7 @@ export default function Dashboard() {
         })}
 
         {filtered.length === 0 && (
-          <div className="rounded-2xl border border-neutral-200 bg-white/70 p-8">
+          <div className="rounded-lg border border-neutral-200 bg-white/70 p-8">
             <div className="text-sm font-semibold text-neutral-900">No forms found</div>
             <div className="mt-1 text-sm text-neutral-500">
               Try a different search, or create a new form.

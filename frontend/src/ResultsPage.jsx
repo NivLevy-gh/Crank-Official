@@ -35,7 +35,7 @@ function Chip({ label }) {
   return (
     <span
       className="
-        rounded-full
+        rounded-lg
         bg-[rgb(251,236,221)]
         border border-[rgb(242,200,168)]
         px-2.5 py-1
@@ -154,7 +154,7 @@ export default function ResultsPage() {
   if (err) {
     return (
       <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center px-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {err}
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function ResultsPage() {
       <div className="-mt-14 pb-16">
         <div className="mx-auto max-w-6xl px-4">
           {/* Header card */}
-          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="h-1.5 bg-[rgb(242,200,168)]" />
             <div className="p-6 sm:p-7">
               <div className="flex items-start justify-between gap-4">
@@ -194,7 +194,7 @@ export default function ResultsPage() {
 
                 <button
                   onClick={() => navigate("/dashboard")}
-                  className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                  className="h-10 rounded-md px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
                 >
                   Back
                 </button>
@@ -207,7 +207,7 @@ export default function ResultsPage() {
             {profiles.map((r) => (
               <div
                 key={r.id}
-                className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden"
+                className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden"
               >
                 <div className="p-5">
                   {/* top row */}
@@ -221,7 +221,7 @@ export default function ResultsPage() {
                       </div>
                     </div>
 
-                    <div className="h-9 w-9 shrink-0 rounded-full border border-neutral-200 bg-[rgb(253,249,244)] flex items-center justify-center text-xs font-semibold text-neutral-700">
+                    <div className="h-9 w-9 shrink-0 rounded-lg border border-neutral-200 bg-[rgb(253,249,244)] flex items-center justify-center text-xs font-semibold text-neutral-700">
                       {(r.candidateName || "C").slice(0, 1).toUpperCase()}
                     </div>
                   </div>
@@ -259,7 +259,7 @@ export default function ResultsPage() {
                         onClick={() => generateSummary(r.id)}
                         disabled={busyId === r.id}
                         className="
-                          h-9 rounded-xl px-3 text-xs font-semibold
+                          h-9 rounded-md px-3 text-xs font-semibold
                           bg-[rgb(251,236,221)] text-[rgb(166,96,43)]
                           border border-[rgb(242,200,168)]
                           hover:bg-[rgb(247,225,205)]
@@ -275,7 +275,7 @@ export default function ResultsPage() {
             ))}
 
             {profiles.length === 0 && (
-              <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm p-6 text-sm text-neutral-600">
+              <div className="rounded-xl border border-neutral-200 bg-white shadow-sm p-6 text-sm text-neutral-600">
                 No responses yet.
               </div>
             )}

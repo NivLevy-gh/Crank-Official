@@ -41,7 +41,7 @@ export default function ShareModal({ open, onClose, url }) {
       />
 
       {/* modal */}
-      <div className="relative w-[92%] max-w-md rounded-2xl border border-neutral-200 bg-white p-5 shadow-lg">
+      <div className="relative w-[92%] max-w-md rounded-lg border border-neutral-200 bg-white p-5 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold text-neutral-900">Share link</div>
           <button
@@ -60,12 +60,12 @@ export default function ShareModal({ open, onClose, url }) {
           <input
             readOnly
             value={url}
-            className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-800 outline-none"
+            className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-800 outline-none"
           />
           <button
             onClick={copy}
             className="
-              h-10 shrink-0 rounded-xl px-3 text-sm font-medium
+              h-10 shrink-0 rounded-md px-3 text-sm font-medium
               bg-orange-100 text-neutral-900 border border-orange-100
               hover:bg-orange-200 transition
               active:scale-[0.99]
@@ -78,7 +78,7 @@ export default function ShareModal({ open, onClose, url }) {
         <div className="mt-4 flex justify-end">
           <button
             onClick={onClose}
-            className="h-9 rounded-xl px-3 text-sm text-neutral-700 hover:bg-neutral-100 transition"
+            className="h-9 rounded-md px-3 text-sm text-neutral-700 hover:bg-neutral-100 transition"
           >
             Done
           </button>

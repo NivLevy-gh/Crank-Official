@@ -120,7 +120,7 @@ export default function ResponseDetail() {
       <div className="-mt-14 pb-16">
         <div className="mx-auto max-w-4xl px-4">
           {/* Header card */}
-          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden mb-6">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden mb-6">
             <div className="h-1.5 bg-[rgb(242,200,168)]" />
             <div className="p-6 sm:p-7">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -139,7 +139,7 @@ export default function ResponseDetail() {
                 <div className="flex gap-2 sm:justify-end">
                   <button
                     onClick={() => navigate(-1)}
-                    className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                    className="h-10 rounded-md px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
                   >
                     Back
                   </button>
@@ -150,7 +150,7 @@ export default function ResponseDetail() {
 
           {/* Summary */}
           {summaryObj ? (
-            <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden mb-6">
+            <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden mb-6">
               <div className="h-1.5 bg-[rgb(242,200,168)]" />
               <div className="p-6 sm:p-7">
                 <div className="flex items-center justify-between mb-4">
@@ -220,12 +220,12 @@ export default function ResponseDetail() {
               </div>
             </div>
           ) : (
-            <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm mb-6">
+            <div className="rounded-xl border border-neutral-200 bg-white shadow-sm mb-6">
               <div className="p-6 sm:p-7">
                 <button
                   onClick={generateSummary}
                   disabled={summarizing}
-                  className="h-10 rounded-xl px-4 text-sm font-semibold
+                  className="h-10 rounded-md px-4 text-sm font-semibold
                     bg-[rgb(251,236,221)] text-[rgb(166,96,43)]
                     border border-[rgb(242,200,168)]
                     hover:bg-[rgb(247,225,205)]
@@ -238,7 +238,7 @@ export default function ResponseDetail() {
           )}
 
           {/* Answers */}
-          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="p-6 sm:p-7">
               <h2 className="text-sm font-semibold text-neutral-900 mb-4">
                 Answers
@@ -248,7 +248,7 @@ export default function ResponseDetail() {
                 {(response.answers || []).map((qa, i) => (
                   <div
                     key={i}
-                    className="rounded-2xl border border-neutral-200 bg-[rgb(253,249,244)] p-4"
+                    className="rounded-lg border border-neutral-200 bg-[rgb(253,249,244)] p-4"
                   >
                     <div className="text-xs font-medium text-neutral-600 mb-2">
                       Q{i + 1}: {qa.question}

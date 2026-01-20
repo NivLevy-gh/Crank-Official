@@ -88,7 +88,7 @@ export default function AppShell({ children }) {
 
         {/* User chip */}
         <div className="mt-auto px-4 pb-5">
-          <div className="rounded-xl border border-neutral-200 bg-white/60 px-3 py-2 flex items-center gap-3">
+          <div className="rounded-md border border-neutral-200 bg-white/60 px-3 py-2 flex items-center gap-3">
             {user?.user_metadata?.avatar_url ? (
               <img
                 src={user.user_metadata.avatar_url}

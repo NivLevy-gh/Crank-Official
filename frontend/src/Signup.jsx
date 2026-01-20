@@ -52,7 +52,7 @@ export default function Signup() {
           </div>
 
           {/* Card */}
-          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="p-6 sm:p-7">
               <h1 className="text-xl font-semibold tracking-tight text-neutral-900">
                 Create an account
@@ -83,7 +83,7 @@ export default function Signup() {
                 <button
                   type="submit"
                   className="
-                    h-10 rounded-xl px-4
+                    h-10 rounded-md px-4
                     bg-[rgb(242,200,168)] text-neutral-900
                     text-sm font-semibold
                     border border-[rgb(242,200,168)]
@@ -108,7 +108,7 @@ export default function Signup() {
                 type="button"
                 onClick={signUpWithGoogle}
                 className="
-                  h-10 w-full rounded-xl
+                  h-10 w-full rounded-md
                   border border-neutral-200
                   bg-white text-neutral-900
                   text-sm font-semibold

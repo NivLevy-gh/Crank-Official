@@ -18,7 +18,7 @@ function Toast({ toast, onClose }) {
 
   return (
     <div className="fixed left-1/2 top-4 z-[9999] w-[92%] max-w-md -translate-x-1/2">
-      <div className={`rounded-2xl border px-4 py-3 shadow-lg ${styles}`}>
+      <div className={`rounded-lg border px-4 py-3 shadow-lg ${styles}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm font-semibold">{toast.title || "Notice"}</div>
           <button
@@ -40,7 +40,7 @@ function Toast({ toast, onClose }) {
 
 function Pill({ children, tone = "neutral" }) {
   const base =
-    "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium border whitespace-nowrap";
+    "inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium border whitespace-nowrap";
 
   const tones = {
     neutral: "bg-neutral-50 text-neutral-700 border-neutral-200",
@@ -496,7 +496,7 @@ export default function FormPage() {
   if (loadErr) {
     return (
       <div className="min-h-screen bg-[rgb(253,249,244)] flex items-center justify-center px-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {loadErr}
         </div>
       </div>
@@ -630,7 +630,7 @@ export default function FormPage() {
       <div className="-mt-16 pb-16">
         <div className="mx-auto w-full max-w-4xl px-4">
           {/* CLEAN HEADER CARD (no buttons here now) */}
-          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="h-1.5 bg-[rgb(242,200,168)]" />
 
             <div className="p-6 sm:p-7">
@@ -648,13 +648,13 @@ export default function FormPage() {
                   <input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                     placeholder="Form title"
                   />
                   <textarea
                     value={editSummary}
                     onChange={(e) => setEditSummary(e.target.value)}
-                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                    className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                     rows={3}
                     placeholder="Form description"
                   />
@@ -667,7 +667,7 @@ export default function FormPage() {
           <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
             {/* Resume (required) */}
             <div className="lg:col-span-1">
-              <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
+              <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -680,17 +680,17 @@ export default function FormPage() {
                     </div>
 
                     {resumeProfile ? (
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                      <span className="rounded-lg bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                         ✓ Loaded
                       </span>
                     ) : (
-                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                      <span className="rounded-lg bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
                         Required
                       </span>
                     )}
                   </div>
 
-                  <label className="mt-4 flex cursor-pointer items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm transition hover:border-[rgb(242,200,168)] hover:bg-[rgb(251,236,221)]">
+                  <label className="mt-4 flex cursor-pointer items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm transition hover:border-[rgb(242,200,168)] hover:bg-[rgb(251,236,221)]">
                     <span className="font-medium text-neutral-800">
                       {resumeUploading ? "Processing…" : "Upload PDF"}
                     </span>
@@ -712,7 +712,7 @@ export default function FormPage() {
                   </label>
 
                   {aiEnabled && (
-                    <div className="mt-4 rounded-2xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] px-4 py-3">
+                    <div className="mt-4 rounded-lg border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] px-4 py-3">
                       <div className="text-xs font-semibold text-[rgb(166,96,43)]">
                         AI follow-ups
                       </div>
@@ -731,14 +731,14 @@ export default function FormPage() {
                 questions.map((q, i) => (
                   <div
                     key={i}
-                    className="rounded-3xl border border-neutral-200 bg-white shadow-sm"
+                    className="rounded-xl border border-neutral-200 bg-white shadow-sm"
                   >
                     <div className="p-6">
                       <div className="text-sm font-semibold text-neutral-900">
                         {q}
                       </div>
                       <textarea
-                        className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                        className="mt-3 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                         rows={4}
                         placeholder="Your answer"
                         value={answers[i] || ""}
@@ -750,7 +750,7 @@ export default function FormPage() {
                   </div>
                 ))
               ) : (
-                <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
+                <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
                   <div className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -765,7 +765,7 @@ export default function FormPage() {
                       <button
                         type="button"
                         onClick={() => setEditQuestions((prev) => [...prev, ""])}
-                        className="h-9 rounded-xl px-3 text-xs font-semibold bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border border-[rgb(242,200,168)] hover:bg-[rgb(247,225,205)] transition"
+                        className="h-9 rounded-md px-3 text-xs font-semibold bg-[rgb(251,236,221)] text-[rgb(166,96,43)] border border-[rgb(242,200,168)] hover:bg-[rgb(247,225,205)] transition"
                       >
                         + Add
                       </button>
@@ -781,7 +781,7 @@ export default function FormPage() {
                                 prev.map((x, i) => (i === idx ? e.target.value : x))
                               )
                             }
-                            className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                            className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                             placeholder={`Question ${idx + 1}`}
                           />
 
@@ -790,7 +790,7 @@ export default function FormPage() {
                             onClick={() =>
                               setEditQuestions((prev) => prev.filter((_, i) => i !== idx))
                             }
-                            className="h-10 rounded-xl px-3 text-sm font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 transition"
+                            className="h-10 rounded-md px-3 text-sm font-semibold border border-neutral-200 bg-white hover:bg-neutral-50 transition"
                           >
                             ✕
                           </button>
@@ -803,7 +803,7 @@ export default function FormPage() {
 
               {/* AI follow-up */}
               {aiEnabled && aiQuestion && (
-                <div className="rounded-3xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
+                <div className="rounded-xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
                   <div className="p-6">
                     <div className="flex items-center justify-between">
                       <span className="rounded-lg bg-white/70 px-2.5 py-1 text-xs font-semibold text-[rgb(166,96,43)]">
@@ -820,7 +820,7 @@ export default function FormPage() {
                     </div>
 
                     <textarea
-                      className="mt-3 w-full rounded-2xl border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(222,150,90)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                      className="mt-3 w-full rounded-lg border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(222,150,90)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                       rows={4}
                       placeholder="Your answer"
                       value={aiAnswer}
@@ -835,7 +835,7 @@ export default function FormPage() {
                 <button
                   type="button"
                   onClick={() => navigate("/dashboard")}
-                  className="h-10 rounded-xl px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
+                  className="h-10 rounded-md px-4 text-sm font-semibold border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 transition"
                 >
                   Exit
                 </button>
@@ -843,7 +843,7 @@ export default function FormPage() {
                 <button
                   type="button"
                   onClick={handlePrimary}
-                  className="h-10 rounded-xl px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
+                  className="h-10 rounded-md px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
                 >
                   {shouldSubmit ? "Submit" : aiQuestion ? "Continue" : "Start follow-ups"}
                 </button>

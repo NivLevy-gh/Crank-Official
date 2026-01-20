@@ -92,14 +92,14 @@ export default function Archive() {
 
   if (loading)
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-white/60 px-5 py-4 text-sm text-neutral-600">
+      <div className="rounded-lg border border-neutral-200 bg-white/60 px-5 py-4 text-sm text-neutral-600">
         Loading…
       </div>
     );
 
   if (err)
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+      <div className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
         {err}
       </div>
     );
@@ -123,7 +123,7 @@ export default function Archive() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search archived…"
-            className="w-full rounded-xl border border-neutral-200 bg-white/70 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-md border border-neutral-200 bg-white/70 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:ring-2 focus:ring-orange-100"
           />
         </div>
       </div>
@@ -133,7 +133,7 @@ export default function Archive() {
         {filtered.map((form) => (
           <div
             key={form.ID}
-            className="group rounded-2xl border border-neutral-200 bg-white/70 px-4 py-3 transition hover:bg-white hover:shadow-sm"
+            className="group rounded-lg border border-neutral-200 bg-white/70 px-4 py-3 transition hover:bg-white hover:shadow-sm"
           >
             <div className="flex items-center gap-3">
               <button
@@ -141,7 +141,7 @@ export default function Archive() {
                 onClick={() => navigate(`/form/${form.ID}`)}
                 className="flex min-w-0 flex-1 items-center gap-3 text-left"
               >
-                <div className="h-9 w-9 shrink-0 rounded-xl bg-neutral-100 border border-neutral-200" />
+                <div className="h-9 w-9 shrink-0 rounded-md bg-neutral-100 border border-neutral-200" />
 
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium text-neutral-900">
@@ -157,7 +157,7 @@ export default function Archive() {
                 type="button"
                 onClick={() => unarchiveForm(form.ID)}
                 className={[
-                  "h-9 rounded-xl px-3 text-xs font-semibold",
+                  "h-9 rounded-md px-3 text-xs font-semibold",
                   "bg-white text-neutral-900 border border-neutral-200",
                   "hover:bg-neutral-50 active:bg-neutral-100 transition",
                   "focus:outline-none focus:ring-2 focus:ring-orange-100",
@@ -170,7 +170,7 @@ export default function Archive() {
         ))}
 
         {filtered.length === 0 && (
-          <div className="rounded-2xl border border-neutral-200 bg-white/70 p-8">
+          <div className="rounded-lg border border-neutral-200 bg-white/70 p-8">
             <div className="text-sm font-semibold text-neutral-900">
               No archived forms
             </div>

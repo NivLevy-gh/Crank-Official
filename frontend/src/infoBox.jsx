@@ -19,7 +19,7 @@ export default function InfoBox({
         onChange={onChange}
         placeholder={placeholder}
         className="
-          h-10 w-full rounded-xl px-3 text-sm
+          h-10 w-full rounded-md px-3 text-sm
           border border-neutral-200
           bg-white text-neutral-900
           placeholder:text-neutral-400

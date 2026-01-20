@@ -17,7 +17,7 @@ function Toast({ toast, onClose }) {
 
   return (
     <div className="fixed left-1/2 top-4 z-[9999] w-[92%] max-w-md -translate-x-1/2">
-      <div className={`rounded-2xl border px-4 py-3 shadow-lg ${styles}`}>
+      <div className={`rounded-lg border px-4 py-3 shadow-lg ${styles}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm font-semibold">{toast.title || "Notice"}</div>
           <button
@@ -318,7 +318,7 @@ export default function PublicFormPage() {
   if (loadErr) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {loadErr}
         </div>
       </div>
@@ -343,7 +343,7 @@ export default function PublicFormPage() {
       <div className="-mt-16 pb-16">
         <div className="mx-auto w-full max-w-4xl px-4">
           {/* Top card */}
-          <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
             <div className="h-1.5 bg-[rgb(242,200,168)]" />
 
             <div className="p-6 sm:p-7">
@@ -357,17 +357,17 @@ export default function PublicFormPage() {
                   </p>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                    <span className="rounded-lg bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
                       AI: {aiEnabled ? "On" : "Off"}
                     </span>
 
                     {aiEnabled && (
-                      <span className="rounded-full bg-[rgb(251,236,221)] px-3 py-1 text-xs font-medium text-[rgb(166,96,43)]">
+                      <span className="rounded-lg bg-[rgb(251,236,221)] px-3 py-1 text-xs font-medium text-[rgb(166,96,43)]">
                         Follow-ups: {aiUsed}/{maxAiQuestions}
                       </span>
                     )}
 
-                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                    <span className="rounded-lg bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                       Public
                     </span>
                   </div>
@@ -382,7 +382,7 @@ export default function PublicFormPage() {
           <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
             {/* Left column */}
             <div className="lg:col-span-1 space-y-5">
-              <div className="rounded-3xl border border-neutral-200 bg-white shadow-sm">
+              <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -395,17 +395,17 @@ export default function PublicFormPage() {
                     </div>
 
                     {resumeProfile ? (
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                      <span className="rounded-lg bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                         ✓ Loaded
                       </span>
                     ) : (
-                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                      <span className="rounded-lg bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
                         Required
                       </span>
                     )}
                   </div>
 
-                  <label className="mt-4 flex cursor-pointer items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm transition hover:border-[rgb(242,200,168)] hover:bg-[rgb(251,236,221)]">
+                  <label className="mt-4 flex cursor-pointer items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm transition hover:border-[rgb(242,200,168)] hover:bg-[rgb(251,236,221)]">
                     <span className="font-medium text-neutral-800">
                       {resumeUploading ? "Processing…" : "Upload PDF"}
                     </span>
@@ -427,7 +427,7 @@ export default function PublicFormPage() {
                   </label>
 
                   {aiEnabled && (
-                    <div className="mt-4 rounded-2xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] px-4 py-3">
+                    <div className="mt-4 rounded-lg border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] px-4 py-3">
                       <div className="text-xs font-semibold text-[rgb(166,96,43)]">
                         AI follow-ups
                       </div>
@@ -445,14 +445,14 @@ export default function PublicFormPage() {
               {questions.map((q, i) => (
                 <div
                   key={i}
-                  className="rounded-3xl border border-neutral-200 bg-white shadow-sm"
+                  className="rounded-xl border border-neutral-200 bg-white shadow-sm"
                 >
                   <div className="p-6">
                     <div className="text-sm font-semibold text-neutral-900">
                       {q}
                     </div>
                     <textarea
-                      className="mt-3 w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                      className="mt-3 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(242,200,168)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                       rows={4}
                       placeholder="Your answer"
                       value={answers[i] || ""}
@@ -465,7 +465,7 @@ export default function PublicFormPage() {
               ))}
 
               {aiEnabled && aiQuestion && (
-                <div className="rounded-3xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
+                <div className="rounded-xl border border-[rgb(242,200,168)] bg-[rgb(251,236,221)] shadow-sm">
                   <div className="p-6">
                     <div className="flex items-center justify-between">
                       <span className="rounded-lg bg-white/70 px-2.5 py-1 text-xs font-semibold text-[rgb(166,96,43)]">
@@ -481,7 +481,7 @@ export default function PublicFormPage() {
                     </div>
 
                     <textarea
-                      className="mt-3 w-full rounded-2xl border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(222,150,90)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
+                      className="mt-3 w-full rounded-lg border border-[rgb(242,200,168)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(222,150,90)] focus:ring-2 focus:ring-[rgb(251,236,221)]"
                       rows={4}
                       placeholder="Your answer"
                       value={aiAnswer}
@@ -495,7 +495,7 @@ export default function PublicFormPage() {
                 <button
                   type="button"
                   onClick={handlePrimary}
-                  className="h-10 rounded-xl px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
+                  className="h-10 rounded-md px-5 text-sm font-semibold bg-[rgb(242,200,168)] text-neutral-900 hover:bg-[rgb(235,185,150)] transition shadow-sm"
                 >
                   {shouldSubmit ? "Submit" : aiQuestion ? "Continue" : "Start follow-ups"}
                 </button>

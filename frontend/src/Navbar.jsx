@@ -25,7 +25,7 @@ export default function Navbar() {
     <div className="sticky top-0 z-40 w-full bg-white">
       <div onClick={() => navigate("/dashboard")} className="mx-auto flex h-14 max-w-6xl items-center px-6 ">
         {/* LEFT 
-        <div className="flex items-center justify-center h-10 w-10 border border-neutral-200 gap-2 rounded-xl transition duration-300 hover:scale-105 hover:bg-orange-100 cursor-pointer">
+        <div className="flex items-center justify-center h-10 w-10 border border-neutral-200 gap-2 rounded-md transition duration-300 hover:scale-105 hover:bg-orange-100 cursor-pointer">
           <img 
             src={home} 
             className="w-4 h-3.5"  
