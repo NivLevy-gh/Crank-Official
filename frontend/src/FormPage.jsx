@@ -498,32 +498,47 @@ export default function FormPage() {
     <div className="min-h-screen bg-[rgb(253,249,244)]">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-          
-      <div className="flex h-14 items-center justify-between">
-  <div className="flex items-center gap-3">
-    <button
-      type="button"
-      onClick={() => navigate("/dashboard")}
-      className="rounded-lg px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
-    >
-      ← Dashboard
-    </button>
+          {/* Top bar (Stripe/Notion-ish) */}
+          <div className="sticky top-0 z-40 border-b border-neutral-200 bg-white/80 backdrop-blur">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex h-14 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard")}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
+              >
+                ← Dashboard
+              </button>
+              <div className="h-6 w-px bg-neutral-200" />
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-neutral-900">
+                  {crank.name}
+                </div>
+                <div className="truncate text-xs text-neutral-500">
+                  {crank.public ? "Public link enabled" : "Private form"}
+                </div>
+              </div>
+            </div>
 
-    <div className="h-6 w-px bg-neutral-200" />
-
-    <div className="min-w-0">
-      <div className="truncate text-sm font-semibold text-neutral-900">
-        {crank?.name}
+            <div className="flex items-center gap-2">
+              <Pill tone={crank.public ? "green" : "neutral"}>
+                {crank.public ? "Public" : "Private"}
+              </Pill>
+              <Pill tone={aiEnabled ? "blue" : "neutral"}>AI {aiEnabled ? "On" : "Off"}</Pill>
+              {aiEnabled ? (
+                <Pill tone="amber">
+                  Follow-ups {aiUsed}/{maxAiQuestions}
+                </Pill>
+              ) : null}
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="truncate text-xs text-neutral-500">
-        {crank?.public ? "Public link enabled" : "Private form"}
-      </div>
-    </div>
-  </div>
-</div>
+     
 
       {/* top gradient */}
-      <div className="h-36 w-full bg-orange-100" />
+      <div className="h-36 w-full bg-[#f7f5f1]" />
 
       <div className="-mt-16 pb-16">
         <div className="mx-auto w-full max-w-4xl px-4">
